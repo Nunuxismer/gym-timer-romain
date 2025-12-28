@@ -72,7 +72,12 @@ export class TimerEngine {
       }
     }
     
-    this.callback(this.state);
+    this.notifyStateChange();
+  }
+
+  private notifyStateChange() {
+    // Always pass a new object so React detects the change
+    this.callback({ ...this.state });
   }
 
   start() {
@@ -98,7 +103,7 @@ export class TimerEngine {
     this.accumulatedTime = 0;
     this.lastAnnouncedSecond = -1;
     this.tick();
-    this.callback(this.state);
+    this.notifyStateChange();
   }
 
   pause() {
@@ -108,7 +113,7 @@ export class TimerEngine {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
-    this.callback(this.state);
+    this.notifyStateChange();
   }
 
   resume() {
@@ -117,14 +122,14 @@ export class TimerEngine {
       this.state.isPaused = false;
       this.lastTick = performance.now();
       this.tick();
-      this.callback(this.state);
+      this.notifyStateChange();
     }
   }
 
   skip() {
     if (this.state.phase !== 'idle' && this.state.phase !== 'complete') {
       this.advancePhase();
-      this.callback(this.state);
+      this.notifyStateChange();
     }
   }
 
@@ -139,7 +144,7 @@ export class TimerEngine {
       this.animationFrameId = null;
     }
     this.state = this.createInitialState();
-    this.callback(this.state);
+    this.notifyStateChange();
   }
 
   destroy() {
@@ -183,7 +188,7 @@ export class TimerEngine {
       this.advancePhase();
     }
 
-    this.callback(this.state);
+    this.notifyStateChange();
 
     if (this.state.isRunning && this.state.phase !== 'complete') {
       this.animationFrameId = requestAnimationFrame(this.tick);
