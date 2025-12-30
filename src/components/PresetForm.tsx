@@ -73,10 +73,10 @@ export function PresetForm({ preset, onSave, onStart, onBack }: PresetFormProps)
         <Button
           variant="outline"
           size="icon"
-          onClick={() => onChange(Math.max(5, value - 5))}
+          onClick={() => onChange(Math.max(1, value - 1))}
           className="shrink-0"
         >
-          -5
+          -1
         </Button>
         <div className={`flex-1 text-center font-display text-4xl ${color}`}>
           {Math.floor(value / 60)}:{(value % 60).toString().padStart(2, '0')}
@@ -84,18 +84,18 @@ export function PresetForm({ preset, onSave, onStart, onBack }: PresetFormProps)
         <Button
           variant="outline"
           size="icon"
-          onClick={() => onChange(Math.min(600, value + 5))}
+          onClick={() => onChange(Math.min(600, value + 1))}
           className="shrink-0"
         >
-          +5
+          +1
         </Button>
       </div>
       <Slider
         value={[value]}
         onValueChange={([v]) => onChange(v)}
-        min={5}
+        min={1}
         max={300}
-        step={5}
+        step={1}
         className="mt-2"
       />
     </div>
