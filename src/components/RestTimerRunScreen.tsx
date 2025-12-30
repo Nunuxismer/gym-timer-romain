@@ -124,13 +124,26 @@ export function RestTimerRunScreen({ preset, onBack }: RestTimerRunScreenProps) 
       animationRef.current = null;
     }
     
-    setState(prev => ({
-      ...prev,
+    // Skip rest means rest is done, advance to next set
+    const nextSetNum = state.currentSet + 1;
+    
+    if (nextSetNum > preset.totalSets) {
+      setIsComplete(true);
+      audioManager.playComplete();
+      haptics.heavy();
+      wakeLockManager.release();
+      return;
+    }
+
+    setState({
       isRunning: false,
+      currentSet: nextSetNum,
+      totalSets: preset.totalSets,
+      restSeconds: preset.restSeconds,
       timeElapsed: 0,
       timeRemaining: preset.restSeconds,
-    }));
-  }, [preset.restSeconds]);
+    });
+  }, [state.currentSet, preset.totalSets, preset.restSeconds]);
 
   const restart = useCallback(() => {
     if (animationRef.current) {
