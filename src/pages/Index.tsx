@@ -1,26 +1,39 @@
 import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { usePresets } from '@/hooks/usePresets';
+import { useRestPresets } from '@/hooks/useRestPresets';
 import { TimerPreset } from '@/types/timer';
+import { RestTimerPreset } from '@/types/restTimer';
 import { TimerCard } from '@/components/TimerCard';
+import { RestTimerCard } from '@/components/RestTimerCard';
 import { PresetForm } from '@/components/PresetForm';
+import { RestTimerForm } from '@/components/RestTimerForm';
 import { RunScreen } from '@/components/RunScreen';
+import { RestTimerRunScreen } from '@/components/RestTimerRunScreen';
 import { SettingsPage } from '@/components/SettingsPage';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { TabLink } from '@/components/TabLink';
 import { Button } from '@/components/ui/button';
-import { Plus, Settings, Timer, Download, Upload } from 'lucide-react';
+import { Plus, Settings, Timer, Dumbbell, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { exportPreset, importPreset } from '@/lib/storage';
+import { importPreset } from '@/lib/storage';
 import { toast } from '@/hooks/use-toast';
 import { audioManager } from '@/lib/audio';
 
+type TimerType = 'emom' | 'rest';
 type View = 'home' | 'new' | 'edit' | 'run' | 'settings';
 
 const Index = () => {
-  const { presets, addPreset, updatePreset, deletePreset, duplicatePreset, getPreset, importPresetFromJson } = usePresets();
+  // EMOM presets
+  const { presets: emomPresets, addPreset: addEmomPreset, updatePreset: updateEmomPreset, deletePreset: deleteEmomPreset, duplicatePreset: duplicateEmomPreset, getPreset: getEmomPreset, importPresetFromJson } = usePresets();
+  
+  // Rest presets
+  const { presets: restPresets, addPreset: addRestPreset, updatePreset: updateRestPreset, deletePreset: deleteRestPreset, getPreset: getRestPreset } = useRestPresets();
+
+  const [timerType, setTimerType] = useState<TimerType>('emom');
   const [view, setView] = useState<View>('home');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [runningPreset, setRunningPreset] = useState<TimerPreset | null>(null);
+  const [runningEmomPreset, setRunningEmomPreset] = useState<TimerPreset | null>(null);
+  const [runningRestPreset, setRunningRestPreset] = useState<Omit<RestTimerPreset, 'id' | 'createdAt' | 'updatedAt'> | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Initialize audio on first interaction
@@ -35,79 +48,114 @@ const Index = () => {
     document.addEventListener('touchstart', handleFirstInteraction);
   });
 
-  const handleStartPreset = useCallback((id: string) => {
-    const preset = getPreset(id);
+  // EMOM handlers
+  const handleStartEmomPreset = useCallback((id: string) => {
+    const preset = getEmomPreset(id);
     if (preset) {
-      setRunningPreset(preset);
+      setRunningEmomPreset(preset);
       setView('run');
     }
-  }, [getPreset]);
+  }, [getEmomPreset]);
 
-  const handleStartNew = useCallback((data: Omit<TimerPreset, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const newPreset = addPreset(data);
-    setRunningPreset(newPreset);
+  const handleStartNewEmom = useCallback((data: Omit<TimerPreset, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const newPreset = addEmomPreset(data);
+    setRunningEmomPreset(newPreset);
     setView('run');
-  }, [addPreset]);
+  }, [addEmomPreset]);
 
-  const handleSaveNew = useCallback((data: Omit<TimerPreset, 'id' | 'createdAt' | 'updatedAt'>) => {
-    addPreset(data);
+  const handleSaveNewEmom = useCallback((data: Omit<TimerPreset, 'id' | 'createdAt' | 'updatedAt'>) => {
+    addEmomPreset(data);
     toast({ title: 'Timer enregistré' });
     setView('home');
-  }, [addPreset]);
+  }, [addEmomPreset]);
 
-  const handleSaveEdit = useCallback((data: Omit<TimerPreset, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleSaveEditEmom = useCallback((data: Omit<TimerPreset, 'id' | 'createdAt' | 'updatedAt'>) => {
     if (editingId) {
-      updatePreset(editingId, data);
+      updateEmomPreset(editingId, data);
       toast({ title: 'Timer modifié' });
     }
     setEditingId(null);
     setView('home');
-  }, [editingId, updatePreset]);
+  }, [editingId, updateEmomPreset]);
 
-  const handleStartEdit = useCallback((data: Omit<TimerPreset, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleStartEditEmom = useCallback((data: Omit<TimerPreset, 'id' | 'createdAt' | 'updatedAt'>) => {
     if (editingId) {
-      updatePreset(editingId, data);
-      const preset = getPreset(editingId);
+      updateEmomPreset(editingId, data);
+      const preset = getEmomPreset(editingId);
       if (preset) {
-        setRunningPreset({ ...preset, ...data });
+        setRunningEmomPreset({ ...preset, ...data });
         setView('run');
       }
     }
-  }, [editingId, updatePreset, getPreset]);
+  }, [editingId, updateEmomPreset, getEmomPreset]);
 
-  const handleEditPreset = useCallback((id: string) => {
+  const handleEditEmomPreset = useCallback((id: string) => {
     setEditingId(id);
     setView('edit');
   }, []);
 
-  const handleDuplicatePreset = useCallback((id: string) => {
-    const dup = duplicatePreset(id);
+  const handleDuplicateEmomPreset = useCallback((id: string) => {
+    const dup = duplicateEmomPreset(id);
     if (dup) {
       toast({ title: 'Timer dupliqué' });
     }
-  }, [duplicatePreset]);
+  }, [duplicateEmomPreset]);
 
+  // Rest handlers
+  const handleStartRestPreset = useCallback((id: string) => {
+    const preset = getRestPreset(id);
+    if (preset) {
+      setRunningRestPreset(preset);
+      setView('run');
+    }
+  }, [getRestPreset]);
+
+  const handleStartNewRest = useCallback((data: Omit<RestTimerPreset, 'id' | 'createdAt' | 'updatedAt'>) => {
+    addRestPreset(data);
+    setRunningRestPreset(data);
+    setView('run');
+  }, [addRestPreset]);
+
+  const handleSaveNewRest = useCallback((data: Omit<RestTimerPreset, 'id' | 'createdAt' | 'updatedAt'>) => {
+    addRestPreset(data);
+    toast({ title: 'Timer repos enregistré' });
+    setView('home');
+  }, [addRestPreset]);
+
+  const handleSaveEditRest = useCallback((data: Omit<RestTimerPreset, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (editingId) {
+      updateRestPreset(editingId, data);
+      toast({ title: 'Timer modifié' });
+    }
+    setEditingId(null);
+    setView('home');
+  }, [editingId, updateRestPreset]);
+
+  const handleStartEditRest = useCallback((data: Omit<RestTimerPreset, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (editingId) {
+      updateRestPreset(editingId, data);
+      setRunningRestPreset(data);
+      setView('run');
+    }
+  }, [editingId, updateRestPreset]);
+
+  const handleEditRestPreset = useCallback((id: string) => {
+    setEditingId(id);
+    setView('edit');
+  }, []);
+
+  // Common handlers
   const handleDeleteConfirm = useCallback(() => {
     if (deleteConfirmId) {
-      deletePreset(deleteConfirmId);
+      if (timerType === 'emom') {
+        deleteEmomPreset(deleteConfirmId);
+      } else {
+        deleteRestPreset(deleteConfirmId);
+      }
       toast({ title: 'Timer supprimé' });
       setDeleteConfirmId(null);
     }
-  }, [deleteConfirmId, deletePreset]);
-
-  const handleExport = useCallback((id: string) => {
-    const preset = getPreset(id);
-    if (preset) {
-      const json = exportPreset(preset);
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${preset.name || 'timer'}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-  }, [getPreset]);
+  }, [deleteConfirmId, timerType, deleteEmomPreset, deleteRestPreset]);
 
   const handleImport = useCallback(() => {
     const input = document.createElement('input');
@@ -134,11 +182,15 @@ const Index = () => {
   }, [importPresetFromJson]);
 
   const handleStopRun = useCallback(() => {
-    setRunningPreset(null);
+    setRunningEmomPreset(null);
+    setRunningRestPreset(null);
     setView('home');
   }, []);
 
-  const editingPreset = editingId ? getPreset(editingId) : undefined;
+  const editingEmomPreset = editingId && timerType === 'emom' ? getEmomPreset(editingId) : undefined;
+  const editingRestPreset = editingId && timerType === 'rest' ? getRestPreset(editingId) : undefined;
+
+  const currentPresets = timerType === 'emom' ? emomPresets : restPresets;
 
   return (
     <div className="min-h-screen bg-background">
@@ -151,105 +203,176 @@ const Index = () => {
             exit={{ opacity: 0 }}
           >
             {/* Header */}
-            <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-4">
-              <div className="flex items-center justify-between">
+            <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
+              <div className="px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                     <Timer className="w-6 h-6 text-primary" />
                   </div>
                   <div>
                     <h1 className="text-xl font-bold text-foreground">Gym Timer</h1>
-                    <p className="text-xs text-muted-foreground">Interval training</p>
                   </div>
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => setView('settings')}>
                   <Settings className="w-5 h-5" />
                 </Button>
               </div>
+
+              {/* Navigation tabs */}
+              <div className="flex border-t border-border">
+                <TabLink
+                  active={timerType === 'emom'}
+                  onClick={() => setTimerType('emom')}
+                  icon={<Timer className="w-4 h-4" />}
+                >
+                  EMOM / Interval
+                </TabLink>
+                <TabLink
+                  active={timerType === 'rest'}
+                  onClick={() => setTimerType('rest')}
+                  icon={<Dumbbell className="w-4 h-4" />}
+                >
+                  Repos séries
+                </TabLink>
+              </div>
             </header>
 
             {/* Content */}
             <main className="p-4 pb-24 space-y-4">
-              {presets.length === 0 ? (
-                <div className="text-center py-16">
-                  <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-secondary flex items-center justify-center">
-                    <Timer className="w-10 h-10 text-muted-foreground" />
-                  </div>
-                  <h2 className="text-xl font-semibold text-foreground mb-2">
-                    Aucun timer
-                  </h2>
-                  <p className="text-muted-foreground mb-6">
-                    Créez votre premier timer d'entraînement
-                  </p>
-                  <Button variant="default" size="lg" onClick={() => setView('new')}>
-                    <Plus className="w-5 h-5" />
-                    Créer un timer
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-foreground">
-                      Mes timers ({presets.length})
-                    </h2>
-                    <Button variant="ghost" size="sm" onClick={handleImport}>
-                      <Upload className="w-4 h-4" />
-                      Importer
-                    </Button>
-                  </div>
-                  <div className="space-y-3">
-                    {presets.map((preset) => (
-                      <TimerCard
-                        key={preset.id}
-                        preset={preset}
-                        onStart={handleStartPreset}
-                        onEdit={handleEditPreset}
-                        onDuplicate={handleDuplicatePreset}
-                        onDelete={(id) => setDeleteConfirmId(id)}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
+              <AnimatePresence mode="wait">
+                {timerType === 'emom' ? (
+                  <motion.div
+                    key="emom-list"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                  >
+                    {emomPresets.length === 0 ? (
+                      <div className="text-center py-16">
+                        <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-secondary flex items-center justify-center">
+                          <Timer className="w-10 h-10 text-muted-foreground" />
+                        </div>
+                        <h2 className="text-xl font-semibold text-foreground mb-2">
+                          Aucun timer EMOM
+                        </h2>
+                        <p className="text-muted-foreground mb-6">
+                          Créez votre premier timer d'interval training
+                        </p>
+                        <Button variant="default" size="lg" onClick={() => setView('new')}>
+                          <Plus className="w-5 h-5" />
+                          Créer un timer
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <h2 className="text-lg font-semibold text-foreground">
+                            Mes timers ({emomPresets.length})
+                          </h2>
+                          <Button variant="ghost" size="sm" onClick={handleImport}>
+                            <Upload className="w-4 h-4" />
+                            Importer
+                          </Button>
+                        </div>
+                        <div className="space-y-3">
+                          {emomPresets.map((preset) => (
+                            <TimerCard
+                              key={preset.id}
+                              preset={preset}
+                              onStart={handleStartEmomPreset}
+                              onEdit={handleEditEmomPreset}
+                              onDuplicate={handleDuplicateEmomPreset}
+                              onDelete={(id) => setDeleteConfirmId(id)}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="rest-list"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                  >
+                    {restPresets.length === 0 ? (
+                      <div className="text-center py-16">
+                        <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-secondary flex items-center justify-center">
+                          <Dumbbell className="w-10 h-10 text-muted-foreground" />
+                        </div>
+                        <h2 className="text-xl font-semibold text-foreground mb-2">
+                          Aucun timer repos
+                        </h2>
+                        <p className="text-muted-foreground mb-6">
+                          Créez un timer pour gérer vos temps de repos
+                        </p>
+                        <Button variant="default" size="lg" onClick={() => setView('new')}>
+                          <Plus className="w-5 h-5" />
+                          Créer un timer
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <h2 className="text-lg font-semibold text-foreground">
+                            Mes timers repos ({restPresets.length})
+                          </h2>
+                        </div>
+                        <div className="space-y-3">
+                          {restPresets.map((preset) => (
+                            <RestTimerCard
+                              key={preset.id}
+                              preset={preset}
+                              onStart={() => handleStartRestPreset(preset.id)}
+                              onEdit={() => handleEditRestPreset(preset.id)}
+                              onDelete={() => setDeleteConfirmId(preset.id)}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </main>
 
             {/* FAB */}
-            {presets.length > 0 && (
-              <motion.div
-                className="fixed bottom-6 right-4 safe-bottom"
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.2, type: 'spring' }}
+            <motion.div
+              className="fixed bottom-6 right-4 safe-bottom"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: 'spring' }}
+            >
+              <Button
+                variant="default"
+                size="xl"
+                onClick={() => setView('new')}
+                className="rounded-full shadow-2xl shadow-primary/30"
               >
-                <Button
-                  variant="default"
-                  size="xl"
-                  onClick={() => setView('new')}
-                  className="rounded-full shadow-2xl shadow-primary/30"
-                >
-                  <Plus className="w-6 h-6" />
-                  Nouveau
-                </Button>
-              </motion.div>
-            )}
+                <Plus className="w-6 h-6" />
+                Nouveau
+              </Button>
+            </motion.div>
           </motion.div>
         )}
 
-        {view === 'new' && (
+        {/* EMOM New/Edit/Run */}
+        {view === 'new' && timerType === 'emom' && (
           <PresetForm
-            key="new"
-            onSave={handleSaveNew}
-            onStart={handleStartNew}
+            key="new-emom"
+            onSave={handleSaveNewEmom}
+            onStart={handleStartNewEmom}
             onBack={() => setView('home')}
           />
         )}
 
-        {view === 'edit' && editingPreset && (
+        {view === 'edit' && timerType === 'emom' && editingEmomPreset && (
           <PresetForm
-            key="edit"
-            preset={editingPreset}
-            onSave={handleSaveEdit}
-            onStart={handleStartEdit}
+            key="edit-emom"
+            preset={editingEmomPreset}
+            onSave={handleSaveEditEmom}
+            onStart={handleStartEditEmom}
             onBack={() => {
               setEditingId(null);
               setView('home');
@@ -257,11 +380,42 @@ const Index = () => {
           />
         )}
 
-        {view === 'run' && runningPreset && (
+        {view === 'run' && runningEmomPreset && (
           <RunScreen
-            key="run"
-            preset={runningPreset}
+            key="run-emom"
+            preset={runningEmomPreset}
             onStop={handleStopRun}
+          />
+        )}
+
+        {/* Rest New/Edit/Run */}
+        {view === 'new' && timerType === 'rest' && (
+          <RestTimerForm
+            key="new-rest"
+            onSave={handleSaveNewRest}
+            onStart={handleStartNewRest}
+            onBack={() => setView('home')}
+          />
+        )}
+
+        {view === 'edit' && timerType === 'rest' && editingRestPreset && (
+          <RestTimerForm
+            key="edit-rest"
+            preset={editingRestPreset}
+            onSave={handleSaveEditRest}
+            onStart={handleStartEditRest}
+            onBack={() => {
+              setEditingId(null);
+              setView('home');
+            }}
+          />
+        )}
+
+        {view === 'run' && runningRestPreset && (
+          <RestTimerRunScreen
+            key="run-rest"
+            preset={runningRestPreset}
+            onBack={handleStopRun}
           />
         )}
 
