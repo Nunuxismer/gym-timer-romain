@@ -1,8 +1,10 @@
 import { useState, useCallback } from 'react';
 import { usePresets } from '@/hooks/usePresets';
 import { useRestPresets } from '@/hooks/useRestPresets';
+import { useJsonSessions } from '@/hooks/useJsonSessions';
 import { TimerPreset } from '@/types/timer';
 import { RestTimerPreset } from '@/types/restTimer';
+import type { StoredSession, JsonSession } from '@/types/jsonSession';
 import { TimerCard } from '@/components/TimerCard';
 import { RestTimerCard } from '@/components/RestTimerCard';
 import { PresetForm } from '@/components/PresetForm';
@@ -12,15 +14,19 @@ import { RestTimerRunScreen } from '@/components/RestTimerRunScreen';
 import { SettingsPage } from '@/components/SettingsPage';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { TabLink } from '@/components/TabLink';
+import { SessionList } from '@/components/session/SessionList';
+import { SessionJsonInput } from '@/components/session/SessionJsonInput';
+import { SessionDetail } from '@/components/session/SessionDetail';
+import { SessionRunScreen } from '@/components/session/SessionRunScreen';
 import { Button } from '@/components/ui/button';
-import { Plus, Settings, Timer, Dumbbell, Upload } from 'lucide-react';
+import { Plus, Settings, Timer, Dumbbell, FileJson, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { importPreset } from '@/lib/storage';
 import { toast } from '@/hooks/use-toast';
 import { audioManager } from '@/lib/audio';
 
-type TimerType = 'emom' | 'rest';
-type View = 'home' | 'new' | 'edit' | 'run' | 'settings';
+type TimerType = 'emom' | 'rest' | 'json';
+type View = 'home' | 'new' | 'edit' | 'run' | 'settings' | 'json-import' | 'json-detail' | 'json-run';
 
 const Index = () => {
   // EMOM presets
