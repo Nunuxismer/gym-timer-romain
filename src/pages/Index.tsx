@@ -4,7 +4,7 @@ import { useRestPresets } from '@/hooks/useRestPresets';
 import { useJsonSessions } from '@/hooks/useJsonSessions';
 import { TimerPreset } from '@/types/timer';
 import { RestTimerPreset } from '@/types/restTimer';
-import type { StoredSession, JsonSession } from '@/types/jsonSession';
+import type { StoredSession } from '@/types/jsonSession';
 import { TimerCard } from '@/components/TimerCard';
 import { RestTimerCard } from '@/components/RestTimerCard';
 import { PresetForm } from '@/components/PresetForm';
@@ -35,11 +35,21 @@ const Index = () => {
   // Rest presets
   const { presets: restPresets, addPreset: addRestPreset, updatePreset: updateRestPreset, deletePreset: deleteRestPreset, getPreset: getRestPreset } = useRestPresets();
 
+  // JSON sessions
+  const { 
+    sessions: jsonSessions, 
+    importFromJson, 
+    deleteSession: deleteJsonSession, 
+    getSession: getJsonSession,
+    markSessionRun 
+  } = useJsonSessions();
+
   const [timerType, setTimerType] = useState<TimerType>('emom');
   const [view, setView] = useState<View>('home');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [runningEmomPreset, setRunningEmomPreset] = useState<TimerPreset | null>(null);
   const [runningRestPreset, setRunningRestPreset] = useState<Omit<RestTimerPreset, 'id' | 'createdAt' | 'updatedAt'> | null>(null);
+  const [selectedJsonSession, setSelectedJsonSession] = useState<StoredSession | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Initialize audio on first interaction
@@ -150,18 +160,49 @@ const Index = () => {
     setView('edit');
   }, []);
 
+  // JSON Session handlers
+  const handleJsonImportSuccess = useCallback((session: StoredSession) => {
+    toast({ title: 'Séance importée avec succès' });
+    setView('home');
+  }, []);
+
+  const handleViewJsonSession = useCallback((sessionId: string) => {
+    const session = getJsonSession(sessionId);
+    if (session) {
+      setSelectedJsonSession(session);
+      setView('json-detail');
+    }
+  }, [getJsonSession]);
+
+  const handleStartJsonSession = useCallback((sessionId: string) => {
+    const session = getJsonSession(sessionId);
+    if (session) {
+      setSelectedJsonSession(session);
+      markSessionRun(sessionId);
+      setView('json-run');
+    }
+  }, [getJsonSession, markSessionRun]);
+
+  const handleDeleteJsonSession = useCallback((sessionId: string) => {
+    setDeleteConfirmId(sessionId);
+  }, []);
+
   // Common handlers
   const handleDeleteConfirm = useCallback(() => {
     if (deleteConfirmId) {
       if (timerType === 'emom') {
         deleteEmomPreset(deleteConfirmId);
-      } else {
+        toast({ title: 'Timer supprimé' });
+      } else if (timerType === 'rest') {
         deleteRestPreset(deleteConfirmId);
+        toast({ title: 'Timer supprimé' });
+      } else if (timerType === 'json') {
+        deleteJsonSession(deleteConfirmId);
+        toast({ title: 'Séance supprimée' });
       }
-      toast({ title: 'Timer supprimé' });
       setDeleteConfirmId(null);
     }
-  }, [deleteConfirmId, timerType, deleteEmomPreset, deleteRestPreset]);
+  }, [deleteConfirmId, timerType, deleteEmomPreset, deleteRestPreset, deleteJsonSession]);
 
   const handleImport = useCallback(() => {
     const input = document.createElement('input');
@@ -190,13 +231,12 @@ const Index = () => {
   const handleStopRun = useCallback(() => {
     setRunningEmomPreset(null);
     setRunningRestPreset(null);
+    setSelectedJsonSession(null);
     setView('home');
   }, []);
 
   const editingEmomPreset = editingId && timerType === 'emom' ? getEmomPreset(editingId) : undefined;
   const editingRestPreset = editingId && timerType === 'rest' ? getRestPreset(editingId) : undefined;
-
-  const currentPresets = timerType === 'emom' ? emomPresets : restPresets;
 
   return (
     <div className="min-h-screen bg-background">
@@ -231,14 +271,21 @@ const Index = () => {
                   onClick={() => setTimerType('emom')}
                   icon={<Timer className="w-4 h-4" />}
                 >
-                  EMOM / Interval
+                  EMOM
                 </TabLink>
                 <TabLink
                   active={timerType === 'rest'}
                   onClick={() => setTimerType('rest')}
                   icon={<Dumbbell className="w-4 h-4" />}
                 >
-                  Repos séries
+                  Repos
+                </TabLink>
+                <TabLink
+                  active={timerType === 'json'}
+                  onClick={() => setTimerType('json')}
+                  icon={<FileJson className="w-4 h-4" />}
+                >
+                  Séances
                 </TabLink>
               </div>
             </header>
@@ -246,7 +293,7 @@ const Index = () => {
             {/* Content */}
             <main className="p-4 pb-24 space-y-4">
               <AnimatePresence mode="wait">
-                {timerType === 'emom' ? (
+                {timerType === 'emom' && (
                   <motion.div
                     key="emom-list"
                     initial={{ opacity: 0, x: -20 }}
@@ -295,7 +342,9 @@ const Index = () => {
                       </>
                     )}
                   </motion.div>
-                ) : (
+                )}
+
+                {timerType === 'rest' && (
                   <motion.div
                     key="rest-list"
                     initial={{ opacity: 0, x: 20 }}
@@ -340,26 +389,45 @@ const Index = () => {
                     )}
                   </motion.div>
                 )}
+
+                {timerType === 'json' && (
+                  <motion.div
+                    key="json-list"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                  >
+                    <SessionList
+                      sessions={jsonSessions}
+                      onView={handleViewJsonSession}
+                      onStart={handleStartJsonSession}
+                      onDelete={handleDeleteJsonSession}
+                      onImport={() => setView('json-import')}
+                    />
+                  </motion.div>
+                )}
               </AnimatePresence>
             </main>
 
-            {/* FAB */}
-            <motion.div
-              className="fixed bottom-6 right-4 safe-bottom"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: 'spring' }}
-            >
-              <Button
-                variant="default"
-                size="xl"
-                onClick={() => setView('new')}
-                className="rounded-full shadow-2xl shadow-primary/30"
+            {/* FAB - only for emom and rest */}
+            {(timerType === 'emom' || timerType === 'rest') && (
+              <motion.div
+                className="fixed bottom-6 right-4 safe-bottom"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: 'spring' }}
               >
-                <Plus className="w-6 h-6" />
-                Nouveau
-              </Button>
-            </motion.div>
+                <Button
+                  variant="default"
+                  size="xl"
+                  onClick={() => setView('new')}
+                  className="rounded-full shadow-2xl shadow-primary/30"
+                >
+                  <Plus className="w-6 h-6" />
+                  Nouveau
+                </Button>
+              </motion.div>
+            )}
           </motion.div>
         )}
 
@@ -425,6 +493,39 @@ const Index = () => {
           />
         )}
 
+        {/* JSON Session Import/Detail/Run */}
+        {view === 'json-import' && (
+          <SessionJsonInput
+            key="json-import"
+            onImport={importFromJson}
+            onSuccess={handleJsonImportSuccess}
+            onBack={() => setView('home')}
+          />
+        )}
+
+        {view === 'json-detail' && selectedJsonSession && (
+          <SessionDetail
+            key="json-detail"
+            session={selectedJsonSession}
+            onBack={() => {
+              setSelectedJsonSession(null);
+              setView('home');
+            }}
+            onStart={() => {
+              markSessionRun(selectedJsonSession.session.session_id);
+              setView('json-run');
+            }}
+          />
+        )}
+
+        {view === 'json-run' && selectedJsonSession && (
+          <SessionRunScreen
+            key="json-run"
+            session={selectedJsonSession}
+            onBack={handleStopRun}
+          />
+        )}
+
         {view === 'settings' && (
           <SettingsPage key="settings" onBack={() => setView('home')} />
         )}
@@ -434,7 +535,7 @@ const Index = () => {
       <ConfirmDialog
         open={deleteConfirmId !== null}
         onOpenChange={(open) => !open && setDeleteConfirmId(null)}
-        title="Supprimer ce timer ?"
+        title={timerType === 'json' ? "Supprimer cette séance ?" : "Supprimer ce timer ?"}
         description="Cette action est irréversible."
         confirmLabel="Supprimer"
         onConfirm={handleDeleteConfirm}
