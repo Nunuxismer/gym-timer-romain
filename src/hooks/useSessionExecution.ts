@@ -299,7 +299,7 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
             phase: 'between_exercises',
             timeRemaining: restBetweenEx,
             timeElapsed: 0,
-            isTimerRunning: false,
+            isTimerRunning: true,
           }));
         } else {
           // No rest, go directly to next exercise
@@ -324,7 +324,7 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
               phase: 'between_rounds',
               timeRemaining: restBetweenRounds,
               timeElapsed: 0,
-              isTimerRunning: false,
+              isTimerRunning: true,
             }));
           } else {
             // Start next round
@@ -367,7 +367,7 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
         phase: 'exercise_rest',
         timeRemaining: restTime,
         timeElapsed: 0,
-        isTimerRunning: false,
+        isTimerRunning: true,
       }));
     } else {
       // No rest, advance to next set or exercise
