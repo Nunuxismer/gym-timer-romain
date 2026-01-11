@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Play, Eye, MoreVertical, Trash2, Clock, Target, Activity } from 'lucide-react';
+import { Play, Eye, MoreVertical, Trash2, Clock, Target, Activity, Pencil } from 'lucide-react';
 import type { StoredSession } from '@/types/jsonSession';
 import { SESSION_TYPE_FR, DOMINANT_FOCUS_FR } from '@/types/jsonSession';
 
@@ -9,10 +9,11 @@ interface SessionCardProps {
   session: StoredSession;
   onStart: () => void;
   onView: () => void;
+  onEdit: () => void;
   onDelete: () => void;
 }
 
-export function SessionCard({ session, onStart, onView, onDelete }: SessionCardProps) {
+export function SessionCard({ session, onStart, onView, onEdit, onDelete }: SessionCardProps) {
   const { session: meta, blocks } = session;
   const totalExercises = blocks.reduce((sum, b) => sum + b.exercises.length, 0);
 
@@ -57,6 +58,10 @@ export function SessionCard({ session, onStart, onView, onDelete }: SessionCardP
               <DropdownMenuItem onClick={onView}>
                 <Eye className="w-4 h-4 mr-2" />
                 Voir la séance
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onEdit}>
+                <Pencil className="w-4 h-4 mr-2" />
+                Éditer
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
                 <Trash2 className="w-4 h-4 mr-2" />

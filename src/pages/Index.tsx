@@ -4,7 +4,7 @@ import { useRestPresets } from '@/hooks/useRestPresets';
 import { useJsonSessions } from '@/hooks/useJsonSessions';
 import { TimerPreset } from '@/types/timer';
 import { RestTimerPreset } from '@/types/restTimer';
-import type { StoredSession } from '@/types/jsonSession';
+import type { StoredSession, JsonSession } from '@/types/jsonSession';
 import { TimerCard } from '@/components/TimerCard';
 import { RestTimerCard } from '@/components/RestTimerCard';
 import { PresetForm } from '@/components/PresetForm';
@@ -18,6 +18,7 @@ import { SessionList } from '@/components/session/SessionList';
 import { SessionJsonInput } from '@/components/session/SessionJsonInput';
 import { SessionDetail } from '@/components/session/SessionDetail';
 import { SessionRunScreen } from '@/components/session/SessionRunScreen';
+import { SessionEditForm } from '@/components/session/SessionEditForm';
 import { Button } from '@/components/ui/button';
 import { Plus, Settings, Timer, Dumbbell, FileJson, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -26,7 +27,7 @@ import { toast } from '@/hooks/use-toast';
 import { audioManager } from '@/lib/audio';
 
 type TimerType = 'emom' | 'rest' | 'json';
-type View = 'home' | 'new' | 'edit' | 'run' | 'settings' | 'json-import' | 'json-detail' | 'json-run';
+type View = 'home' | 'new' | 'edit' | 'run' | 'settings' | 'json-import' | 'json-detail' | 'json-run' | 'json-edit';
 
 const Index = () => {
   // EMOM presets
@@ -41,6 +42,7 @@ const Index = () => {
     importFromJson, 
     deleteSession: deleteJsonSession, 
     getSession: getJsonSession,
+    updateSession: updateJsonSession,
     markSessionRun 
   } = useJsonSessions();
 
@@ -186,6 +188,23 @@ const Index = () => {
   const handleDeleteJsonSession = useCallback((sessionId: string) => {
     setDeleteConfirmId(sessionId);
   }, []);
+
+  const handleEditJsonSession = useCallback((sessionId: string) => {
+    const session = getJsonSession(sessionId);
+    if (session) {
+      setSelectedJsonSession(session);
+      setView('json-edit');
+    }
+  }, [getJsonSession]);
+
+  const handleSaveJsonSession = useCallback((jsonSession: JsonSession) => {
+    if (selectedJsonSession) {
+      updateJsonSession(selectedJsonSession.session.session_id, jsonSession);
+      toast({ title: 'Séance modifiée' });
+      setSelectedJsonSession(null);
+      setView('home');
+    }
+  }, [selectedJsonSession, updateJsonSession]);
 
   // Common handlers
   const handleDeleteConfirm = useCallback(() => {
@@ -401,6 +420,7 @@ const Index = () => {
                       sessions={jsonSessions}
                       onView={handleViewJsonSession}
                       onStart={handleStartJsonSession}
+                      onEdit={handleEditJsonSession}
                       onDelete={handleDeleteJsonSession}
                       onImport={() => setView('json-import')}
                     />
@@ -514,6 +534,18 @@ const Index = () => {
             onStart={() => {
               markSessionRun(selectedJsonSession.session.session_id);
               setView('json-run');
+            }}
+          />
+        )}
+
+        {view === 'json-edit' && selectedJsonSession && (
+          <SessionEditForm
+            key="json-edit"
+            session={selectedJsonSession}
+            onSave={handleSaveJsonSession}
+            onBack={() => {
+              setSelectedJsonSession(null);
+              setView('home');
             }}
           />
         )}

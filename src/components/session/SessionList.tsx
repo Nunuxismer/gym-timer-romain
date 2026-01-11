@@ -9,10 +9,11 @@ interface SessionListProps {
   onImport: () => void;
   onStart: (sessionId: string) => void;
   onView: (sessionId: string) => void;
+  onEdit: (sessionId: string) => void;
   onDelete: (sessionId: string) => void;
 }
 
-export function SessionList({ sessions, onImport, onStart, onView, onDelete }: SessionListProps) {
+export function SessionList({ sessions, onImport, onStart, onView, onEdit, onDelete }: SessionListProps) {
   if (sessions.length === 0) {
     return (
       <div className="text-center py-16">
@@ -56,6 +57,7 @@ export function SessionList({ sessions, onImport, onStart, onView, onDelete }: S
             session={session}
             onStart={() => onStart(session.session.session_id)}
             onView={() => onView(session.session.session_id)}
+            onEdit={() => onEdit(session.session.session_id)}
             onDelete={() => onDelete(session.session.session_id)}
           />
         ))}
