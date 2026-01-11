@@ -314,9 +314,11 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
           }));
         }
       } else {
-        // Finished round
+        // Finished all exercises in this round - check if more rounds
+        const totalRounds = getTotalRounds(currentBlock);
         const nextRound = state.currentRound + 1;
-        if (nextRound <= state.totalRounds) {
+        
+        if (nextRound <= totalRounds) {
           const restBetweenRounds = getRestBetweenRounds(currentBlock);
           if (restBetweenRounds > 0) {
             setState(prev => ({
@@ -325,9 +327,10 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
               timeRemaining: restBetweenRounds,
               timeElapsed: 0,
               isTimerRunning: true,
+              totalRounds: totalRounds, // Ensure totalRounds is set
             }));
           } else {
-            // Start next round
+            // Start next round immediately
             const firstExercise = currentBlock.exercises[0];
             const workDuration = getExerciseWorkDuration(firstExercise);
             setState(prev => ({
@@ -335,13 +338,14 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
               phase: 'exercise_work',
               currentExerciseIndex: 0,
               currentRound: nextRound,
+              totalRounds: totalRounds,
               timeRemaining: workDuration || 0,
               timeElapsed: 0,
               isFreeExercise: !workDuration,
             }));
           }
         } else {
-          // Circuit complete, move to next block
+          // All rounds complete, move to next block
           const nextBlockIndex = state.currentBlockIndex + 1;
           if (nextBlockIndex >= blocks.length) {
             setState(prev => ({ ...prev, phase: 'complete' }));
@@ -351,6 +355,7 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
               currentBlockIndex: nextBlockIndex,
               currentExerciseIndex: 0,
               currentRound: 1,
+              totalRounds: 1,
               phase: 'block_intro',
             }));
           }
@@ -399,11 +404,13 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
       } else if (state.phase === 'between_rounds') {
         const firstExercise = currentBlock.exercises[0];
         const workDuration = getExerciseWorkDuration(firstExercise);
+        const totalRounds = getTotalRounds(currentBlock);
         setState(prev => ({
           ...prev,
           phase: 'exercise_work',
           currentExerciseIndex: 0,
           currentRound: prev.currentRound + 1,
+          totalRounds: totalRounds,
           timeRemaining: workDuration || 0,
           timeElapsed: 0,
           isTimerRunning: false,
@@ -461,7 +468,7 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
         }
       }
     }
-  }, [currentBlock, currentExercise, state, blocks.length, getTotalSets, getExerciseWorkDuration]);
+  }, [currentBlock, currentExercise, state, blocks.length, getTotalSets, getTotalRounds, getExerciseWorkDuration]);
 
   // Auto-advance when timer hits 0
   useEffect(() => {
