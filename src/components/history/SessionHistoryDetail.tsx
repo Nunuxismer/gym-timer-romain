@@ -3,15 +3,24 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { ArrowLeft, Clock, Calendar, Star, Dumbbell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { SessionHistoryEntry, ExerciseLog } from '@/hooks/useSessionHistory';
+import { useSessionHistory, type SessionHistoryEntry, type ExerciseLog } from '@/hooks/useSessionHistory';
 
 interface SessionHistoryDetailProps {
   entry: SessionHistoryEntry;
-  exerciseLogs: ExerciseLog[];
   onBack: () => void;
 }
 
-export function SessionHistoryDetail({ entry, exerciseLogs, onBack }: SessionHistoryDetailProps) {
+export function SessionHistoryDetail({ entry, onBack }: SessionHistoryDetailProps) {
+  const [exerciseLogs, setExerciseLogs] = useState<ExerciseLog[]>([]);
+  const { getExerciseLogs } = useSessionHistory();
+
+  useEffect(() => {
+    const loadLogs = async () => {
+      const logs = await getExerciseLogs(entry.id);
+      setExerciseLogs(logs);
+    };
+    loadLogs();
+  }, [entry.id, getExerciseLogs]);
   const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
