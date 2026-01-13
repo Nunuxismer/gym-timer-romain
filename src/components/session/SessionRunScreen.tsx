@@ -392,86 +392,201 @@ export function SessionRunScreen({ session, onBack }: SessionRunScreenProps) {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6">
-        {/* Phase label */}
-        <AnimatePresence mode="wait">
+      <div className="flex-1 flex flex-col p-6">
+        {/* REST PHASE: Show exercise info at top */}
+        {isRestPhase && currentExercise && (
           <motion.div
-            key={state.phase}
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="mb-4"
+            className="text-center mb-4"
           >
-            <Badge 
-              variant={isRestPhase ? 'secondary' : 'default'}
-              className={`text-sm px-4 py-1 ${isRestPhase ? 'bg-timer-rest/20 text-timer-rest' : ''}`}
-            >
-              {getPhaseLabel()}
-            </Badge>
-          </motion.div>
-        </AnimatePresence>
-
-        {/* Exercise info */}
-        {currentExercise && state.phase === 'exercise_work' && (
-          <div className="text-center mb-6 px-4">
-            <h2 className="text-2xl font-bold text-foreground mb-2">
+            <p className="text-sm text-muted-foreground mb-1">Exercice en cours</p>
+            <h2 className="text-xl font-bold text-foreground mb-2">
               {currentExercise.exercise_name}
             </h2>
-            <div className="flex flex-wrap justify-center gap-2 text-sm text-muted-foreground">
-              {currentExercise.reps && (
-                <span>{formatRange(currentExercise.reps)} reps</span>
-              )}
-              {currentExercise.reps_per_side && (
-                <span>{formatRange(currentExercise.reps_per_side)} reps/côté</span>
-              )}
-              {currentExercise.tempo && (
-                <span>Tempo: {currentExercise.tempo}</span>
-              )}
-            </div>
-            {currentExercise.coaching_cues && currentExercise.coaching_cues.length > 0 && (
-              <div className="mt-4 p-3 bg-secondary/50 rounded-lg text-left">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                  <Info className="w-3 h-3" />
-                  Consignes
-                </div>
-                <ul className="text-sm text-foreground space-y-0.5">
-                  {currentExercise.coaching_cues.slice(0, 2).map((cue, i) => (
-                    <li key={i}>• {cue}</li>
-                  ))}
-                </ul>
+            <div className="flex justify-center gap-4 text-sm">
+              <div className="bg-secondary rounded-lg px-3 py-1.5">
+                <span className="text-muted-foreground">Fait: </span>
+                <span className="font-bold text-foreground">{state.currentSet - 1}</span>
               </div>
-            )}
-          </div>
-        )}
-
-        {/* Timer display */}
-        {showTimer && (
-          <div className="mb-8">
-            <motion.div
-              className={`timer-digits ${getPhaseColor()}`}
-              key={Math.floor(state.timeRemaining)}
-              initial={{ scale: 1.05 }}
-              animate={{ scale: 1 }}
-            >
-              {formatTime(state.timeRemaining)}
-            </motion.div>
-            
-            {/* Progress bar */}
-            <Progress 
-              value={progressPercent} 
-              className="h-2 mt-4 w-64"
-            />
-          </div>
-        )}
-
-        {/* Free exercise - elapsed time */}
-        {state.isFreeExercise && state.phase === 'exercise_work' && (
-          <div className="mb-8 text-center">
-            <p className="text-muted-foreground text-sm mb-2">Temps écoulé</p>
-            <div className="text-4xl font-display text-foreground">
-              {formatTime(state.timeElapsed)}
+              <div className="bg-primary/20 rounded-lg px-3 py-1.5">
+                <span className="text-muted-foreground">Reste: </span>
+                <span className="font-bold text-primary">{state.totalSets - state.currentSet + 1}</span>
+              </div>
             </div>
-          </div>
+          </motion.div>
+        )}
+
+        {/* Centered timer area */}
+        <div className="flex-1 flex flex-col items-center justify-center">
+          {/* Phase label */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={state.phase}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="mb-4"
+            >
+              <Badge 
+                variant={isRestPhase ? 'secondary' : 'default'}
+                className={`text-sm px-4 py-1 ${isRestPhase ? 'bg-timer-rest/20 text-timer-rest' : ''}`}
+              >
+                {getPhaseLabel()}
+              </Badge>
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Exercise info - WORK PHASE */}
+          {currentExercise && state.phase === 'exercise_work' && (
+            <div className="text-center mb-6 px-4 w-full">
+              <h2 className="text-2xl font-bold text-foreground mb-3">
+                {currentExercise.exercise_name}
+              </h2>
+              
+              {/* Key metrics: Reps, Sets, RIR */}
+              <div className="flex flex-wrap justify-center gap-3 mb-4">
+                {currentExercise.reps && (
+                  <div className="bg-secondary rounded-xl px-4 py-2">
+                    <p className="text-xs text-muted-foreground">Reps</p>
+                    <p className="text-lg font-bold text-foreground">{formatRange(currentExercise.reps)}</p>
+                  </div>
+                )}
+                {currentExercise.reps_per_side && (
+                  <div className="bg-secondary rounded-xl px-4 py-2">
+                    <p className="text-xs text-muted-foreground">Reps/côté</p>
+                    <p className="text-lg font-bold text-foreground">{formatRange(currentExercise.reps_per_side)}</p>
+                  </div>
+                )}
+                <div className="bg-secondary rounded-xl px-4 py-2">
+                  <p className="text-xs text-muted-foreground">Série</p>
+                  <p className="text-lg font-bold text-foreground">{state.currentSet}/{state.totalSets}</p>
+                </div>
+                {currentExercise.rir !== null && currentExercise.rir !== undefined && (
+                  <div className="bg-primary/20 rounded-xl px-4 py-2 border-2 border-primary/30">
+                    <p className="text-xs text-primary font-medium">RIR</p>
+                    <p className="text-lg font-bold text-primary">{formatRange(currentExercise.rir)}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Secondary info */}
+              <div className="flex flex-wrap justify-center gap-2 text-sm text-muted-foreground mb-3">
+                {currentExercise.tempo && (
+                  <span className="bg-secondary/50 px-2 py-0.5 rounded">Tempo: {currentExercise.tempo}</span>
+                )}
+                {currentExercise.isometric_hold_sec && (
+                  <span className="bg-secondary/50 px-2 py-0.5 rounded">Hold: {formatRange(currentExercise.isometric_hold_sec, 's')}</span>
+                )}
+              </div>
+
+              {/* Coaching cues */}
+              {currentExercise.coaching_cues && currentExercise.coaching_cues.length > 0 && (
+                <div className="mt-3 p-3 bg-secondary/50 rounded-lg text-left max-w-sm mx-auto">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    <Info className="w-3 h-3" />
+                    Consignes
+                  </div>
+                  <ul className="text-sm text-foreground space-y-0.5">
+                    {currentExercise.coaching_cues.slice(0, 2).map((cue, i) => (
+                      <li key={i}>• {cue}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Timer display */}
+          {showTimer && (
+            <div className="mb-6">
+              <motion.div
+                className={`timer-digits ${getPhaseColor()}`}
+                key={Math.floor(state.timeRemaining)}
+                initial={{ scale: 1.05 }}
+                animate={{ scale: 1 }}
+              >
+                {formatTime(state.timeRemaining)}
+              </motion.div>
+              
+              {/* Progress bar */}
+              <Progress 
+                value={progressPercent} 
+                className="h-2 mt-4 w-64"
+              />
+            </div>
+          )}
+
+          {/* Free exercise - elapsed time */}
+          {state.isFreeExercise && state.phase === 'exercise_work' && (
+            <div className="mb-6 text-center">
+              <p className="text-muted-foreground text-sm mb-2">Temps écoulé</p>
+              <div className="text-4xl font-display text-foreground">
+                {formatTime(state.timeElapsed)}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* REST PHASE: Show next exercise at bottom */}
+        {isRestPhase && currentBlock && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-auto pt-4"
+          >
+            {(() => {
+              // Determine next exercise
+              const nextExIndex = state.currentSet < state.totalSets 
+                ? state.currentExerciseIndex  // Same exercise, next set
+                : state.currentExerciseIndex + 1;  // Next exercise
+              
+              const isNextSet = state.currentSet < state.totalSets;
+              const nextExercise = isNextSet ? currentExercise : currentBlock.exercises[nextExIndex];
+              
+              if (!nextExercise && !isNextSet) {
+                // Check if there's a next block
+                const nextBlockIndex = state.currentBlockIndex + 1;
+                const nextBlock = session.blocks[nextBlockIndex];
+                if (nextBlock && nextBlock.exercises.length > 0) {
+                  return (
+                    <div className="bg-secondary/50 rounded-xl p-4 text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Prochain bloc</p>
+                      <p className="font-medium text-foreground">{nextBlock.block_name}</p>
+                    </div>
+                  );
+                }
+                return null;
+              }
+
+              if (!nextExercise) return null;
+
+              return (
+                <div className="bg-secondary/50 rounded-xl p-4">
+                  <p className="text-xs text-muted-foreground mb-1 text-center">
+                    {isNextSet ? 'Prochaine série' : 'Prochain exercice'}
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                      <Dumbbell className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-foreground truncate">
+                        {isNextSet ? `Série ${state.currentSet}/${state.totalSets}` : nextExercise.exercise_name}
+                      </p>
+                      {!isNextSet && (
+                        <p className="text-sm text-muted-foreground">
+                          {formatRange(nextExercise.sets)} série{(getNumericValue(nextExercise.sets) || 1) > 1 ? 's' : ''}
+                          {nextExercise.reps && ` • ${formatRange(nextExercise.reps)} reps`}
+                          {nextExercise.rir !== null && nextExercise.rir !== undefined && ` • RIR ${formatRange(nextExercise.rir)}`}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </motion.div>
         )}
       </div>
 
