@@ -2,6 +2,10 @@ import { useState, useCallback } from 'react';
 import { usePresets } from '@/hooks/usePresets';
 import { useRestPresets } from '@/hooks/useRestPresets';
 import { useJsonSessions } from '@/hooks/useJsonSessions';
+import { useScheduledSessions } from '@/hooks/useScheduledSessions';
+import { useSavedSessions } from '@/hooks/useSavedSessions';
+import { useSessionHistory, type SessionHistoryEntry } from '@/hooks/useSessionHistory';
+import { useAuth } from '@/contexts/AuthContext';
 import { TimerPreset } from '@/types/timer';
 import { RestTimerPreset } from '@/types/restTimer';
 import type { StoredSession, JsonSession } from '@/types/jsonSession';
@@ -19,15 +23,19 @@ import { SessionJsonInput } from '@/components/session/SessionJsonInput';
 import { SessionDetail } from '@/components/session/SessionDetail';
 import { SessionRunScreen } from '@/components/session/SessionRunScreen';
 import { SessionEditForm } from '@/components/session/SessionEditForm';
+import { SessionCalendar } from '@/components/calendar/SessionCalendar';
+import { ScheduleSessionDialog } from '@/components/calendar/ScheduleSessionDialog';
+import { SessionHistoryList } from '@/components/history/SessionHistoryList';
+import { SessionHistoryDetail } from '@/components/history/SessionHistoryDetail';
 import { Button } from '@/components/ui/button';
-import { Plus, Settings, Timer, Dumbbell, FileJson, Upload } from 'lucide-react';
+import { Plus, Settings, Timer, Dumbbell, FileJson, Upload, Calendar, History } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { importPreset } from '@/lib/storage';
 import { toast } from '@/hooks/use-toast';
 import { audioManager } from '@/lib/audio';
 
-type TimerType = 'emom' | 'rest' | 'json';
-type View = 'home' | 'new' | 'edit' | 'run' | 'settings' | 'json-import' | 'json-detail' | 'json-run' | 'json-edit';
+type TimerType = 'emom' | 'rest' | 'json' | 'planning' | 'history';
+type View = 'home' | 'new' | 'edit' | 'run' | 'settings' | 'json-import' | 'json-detail' | 'json-run' | 'json-edit' | 'history-detail';
 
 const Index = () => {
   // EMOM presets
@@ -46,6 +54,14 @@ const Index = () => {
     markSessionRun 
   } = useJsonSessions();
 
+  // Auth
+  const { user } = useAuth();
+
+  // Cloud data hooks
+  const { sessions: savedSessions } = useSavedSessions();
+  const { scheduledSessions, scheduleSession, updateScheduledSession, deleteScheduledSession } = useScheduledSessions();
+  const { history, deleteHistoryEntry } = useSessionHistory();
+
   const [timerType, setTimerType] = useState<TimerType>('emom');
   const [view, setView] = useState<View>('home');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -53,6 +69,14 @@ const Index = () => {
   const [runningRestPreset, setRunningRestPreset] = useState<Omit<RestTimerPreset, 'id' | 'createdAt' | 'updatedAt'> | null>(null);
   const [selectedJsonSession, setSelectedJsonSession] = useState<StoredSession | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  
+  // Planning state
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [scheduleDialogDate, setScheduleDialogDate] = useState<Date | null>(null);
+  
+  // History state
+  const [selectedHistoryEntry, setSelectedHistoryEntry] = useState<SessionHistoryEntry | null>(null);
 
   // Initialize audio on first interaction
   const handleFirstInteraction = useCallback(() => {
@@ -306,6 +330,20 @@ const Index = () => {
                 >
                   Séances
                 </TabLink>
+                <TabLink
+                  active={timerType === 'planning'}
+                  onClick={() => setTimerType('planning')}
+                  icon={<Calendar className="w-4 h-4" />}
+                >
+                  Planning
+                </TabLink>
+                <TabLink
+                  active={timerType === 'history'}
+                  onClick={() => setTimerType('history')}
+                  icon={<History className="w-4 h-4" />}
+                >
+                  Historique
+                </TabLink>
               </div>
             </header>
 
@@ -424,6 +462,74 @@ const Index = () => {
                       onDelete={handleDeleteJsonSession}
                       onImport={() => setView('json-import')}
                     />
+                  </motion.div>
+                )}
+
+                {timerType === 'planning' && (
+                  <motion.div
+                    key="planning"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                  >
+                    {!user ? (
+                      <div className="text-center py-12">
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-secondary flex items-center justify-center">
+                          <Calendar className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-foreground mb-2">Connectez-vous</h3>
+                        <p className="text-muted-foreground text-sm mb-4">
+                          Connectez-vous pour planifier vos séances
+                        </p>
+                        <Button onClick={() => window.location.href = '/auth'}>
+                          Se connecter
+                        </Button>
+                      </div>
+                    ) : (
+                      <SessionCalendar
+                        scheduledSessions={scheduledSessions}
+                        savedSessions={savedSessions}
+                        selectedDate={selectedDate}
+                        onSelectDate={setSelectedDate}
+                        onScheduleSession={(date) => {
+                          setScheduleDialogDate(date);
+                          setScheduleDialogOpen(true);
+                        }}
+                      />
+                    )}
+                  </motion.div>
+                )}
+
+                {timerType === 'history' && (
+                  <motion.div
+                    key="history"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                  >
+                    {!user ? (
+                      <div className="text-center py-12">
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-secondary flex items-center justify-center">
+                          <History className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-foreground mb-2">Connectez-vous</h3>
+                        <p className="text-muted-foreground text-sm mb-4">
+                          Connectez-vous pour voir votre historique
+                        </p>
+                        <Button onClick={() => window.location.href = '/auth'}>
+                          Se connecter
+                        </Button>
+                      </div>
+                    ) : (
+                      <SessionHistoryList
+                        history={history}
+                        onViewDetails={(entry) => {
+                          setSelectedHistoryEntry(entry);
+                          setView('history-detail');
+                        }}
+                        onDelete={deleteHistoryEntry}
+                      />
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -561,7 +667,38 @@ const Index = () => {
         {view === 'settings' && (
           <SettingsPage key="settings" onBack={() => setView('home')} />
         )}
+
+        {view === 'history-detail' && selectedHistoryEntry && (
+          <SessionHistoryDetail
+            key="history-detail"
+            entry={selectedHistoryEntry}
+            onBack={() => {
+              setSelectedHistoryEntry(null);
+              setView('home');
+            }}
+          />
+        )}
       </AnimatePresence>
+
+      {/* Schedule session dialog */}
+      {scheduleDialogDate && scheduleDialogOpen && (
+        <ScheduleSessionDialog
+          date={scheduleDialogDate}
+          savedSessions={savedSessions}
+          onSchedule={async (savedSessionId, date, notes) => {
+            const result = await scheduleSession(savedSessionId, date, notes);
+            if (result) {
+              toast({ title: 'Séance planifiée' });
+              setScheduleDialogOpen(false);
+              setScheduleDialogDate(null);
+            }
+          }}
+          onClose={() => {
+            setScheduleDialogOpen(false);
+            setScheduleDialogDate(null);
+          }}
+        />
+      )}
 
       {/* Delete confirmation */}
       <ConfirmDialog
