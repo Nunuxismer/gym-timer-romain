@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { JsonSession } from '@/types/jsonSession';
 import type { Json } from '@/integrations/supabase/types';
 import { toast } from '@/hooks/use-toast';
-
+import { sessionPerformanceInputSchema, validateInput } from '@/lib/validation';
 export interface ExerciseLog {
   id: string;
   session_history_id: string;
@@ -109,20 +109,33 @@ export function useSessionHistory() {
   const recordSession = useCallback(async (input: SessionPerformanceInput): Promise<SessionHistoryEntry | null> => {
     if (!user) return null;
 
+    // Validate input before database operation
+    const validation = validateInput(sessionPerformanceInputSchema, input);
+    if (!validation.success) {
+      toast({
+        title: 'Erreur de validation',
+        description: 'error' in validation ? validation.error : 'Données invalides',
+        variant: 'destructive',
+      });
+      return null;
+    }
+
+    const validatedInput = validation.data as SessionPerformanceInput;
+
     try {
       // Insert session history
       const { data: historyData, error: historyError } = await supabase
         .from('session_history')
         .insert({
           user_id: user.id,
-          saved_session_id: input.savedSessionId || null,
-          scheduled_session_id: input.scheduledSessionId || null,
-          session_name: input.sessionName,
-          session_data: sessionToJson(input.sessionData),
-          started_at: input.startedAt.toISOString(),
-          duration_seconds: input.durationSeconds,
-          notes: input.notes || null,
-          rating: input.rating || null,
+          saved_session_id: validatedInput.savedSessionId || null,
+          scheduled_session_id: validatedInput.scheduledSessionId || null,
+          session_name: validatedInput.sessionName,
+          session_data: sessionToJson(validatedInput.sessionData),
+          started_at: validatedInput.startedAt.toISOString(),
+          duration_seconds: validatedInput.durationSeconds,
+          notes: validatedInput.notes || null,
+          rating: validatedInput.rating || null,
         })
         .select()
         .single();

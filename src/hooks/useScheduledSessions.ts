@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-
+import { notesSchema } from '@/lib/validation';
 export interface ScheduledSession {
   id: string;
   user_id: string;
@@ -58,6 +58,19 @@ export function useScheduledSessions() {
   ): Promise<ScheduledSession | null> => {
     if (!user) return null;
 
+    // Validate notes if provided
+    if (notes !== undefined) {
+      const notesValidation = notesSchema.safeParse(notes);
+      if (!notesValidation.success) {
+        toast({
+          title: 'Erreur de validation',
+          description: notesValidation.error.errors.map(e => e.message).join(', '),
+          variant: 'destructive',
+        });
+        return null;
+      }
+    }
+
     try {
       const { data, error } = await supabase
         .from('scheduled_sessions')
@@ -65,7 +78,7 @@ export function useScheduledSessions() {
           user_id: user.id,
           saved_session_id: savedSessionId,
           scheduled_date: date.toISOString().split('T')[0],
-          notes: notes || null,
+          notes: notes?.trim() || null,
         })
         .select()
         .single();

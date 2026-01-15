@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { JsonSession } from '@/types/jsonSession';
 import type { Json } from '@/integrations/supabase/types';
 import { toast } from '@/hooks/use-toast';
-
+import { sessionNameSchema } from '@/lib/validation';
 export interface SavedSession {
   id: string;
   user_id: string;
@@ -68,13 +68,24 @@ export function useSavedSessions() {
   const addSession = useCallback(async (jsonSession: JsonSession): Promise<SavedSession | null> => {
     if (!user) return null;
 
+    // Validate session name
+    const nameValidation = sessionNameSchema.safeParse(jsonSession.session.session_name);
+    if (!nameValidation.success) {
+      toast({
+        title: 'Erreur de validation',
+        description: nameValidation.error.errors.map(e => e.message).join(', '),
+        variant: 'destructive',
+      });
+      return null;
+    }
+
     try {
       const { data, error } = await supabase
         .from('saved_sessions')
         .insert({
           user_id: user.id,
           session_data: sessionToJson(jsonSession),
-          name: jsonSession.session.session_name,
+          name: nameValidation.data,
         })
         .select()
         .single();
@@ -102,12 +113,23 @@ export function useSavedSessions() {
   const updateSession = useCallback(async (id: string, jsonSession: JsonSession): Promise<SavedSession | null> => {
     if (!user) return null;
 
+    // Validate session name
+    const nameValidation = sessionNameSchema.safeParse(jsonSession.session.session_name);
+    if (!nameValidation.success) {
+      toast({
+        title: 'Erreur de validation',
+        description: nameValidation.error.errors.map(e => e.message).join(', '),
+        variant: 'destructive',
+      });
+      return null;
+    }
+
     try {
       const { data, error } = await supabase
         .from('saved_sessions')
         .update({
           session_data: sessionToJson(jsonSession),
-          name: jsonSession.session.session_name,
+          name: nameValidation.data,
         })
         .eq('id', id)
         .eq('user_id', user.id)
