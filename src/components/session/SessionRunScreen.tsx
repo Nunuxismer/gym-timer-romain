@@ -407,11 +407,11 @@ export function SessionRunScreen({ session, onBack }: SessionRunScreenProps) {
             <div className="flex justify-center gap-4 text-sm">
               <div className="bg-secondary rounded-lg px-3 py-1.5">
                 <span className="text-muted-foreground">Fait: </span>
-                <span className="font-bold text-foreground">{state.currentSet - 1}</span>
+                <span className="font-bold text-foreground">{state.currentSet}</span>
               </div>
               <div className="bg-primary/20 rounded-lg px-3 py-1.5">
                 <span className="text-muted-foreground">Reste: </span>
-                <span className="font-bold text-primary">{state.totalSets - state.currentSet + 1}</span>
+                <span className="font-bold text-primary">{state.totalSets - state.currentSet}</span>
               </div>
             </div>
           </motion.div>
@@ -536,51 +536,54 @@ export function SessionRunScreen({ session, onBack }: SessionRunScreenProps) {
             className="mt-auto pt-4"
           >
             {(() => {
-              // Determine next exercise
-              const nextExIndex = state.currentSet < state.totalSets 
-                ? state.currentExerciseIndex  // Same exercise, next set
-                : state.currentExerciseIndex + 1;  // Next exercise
+              // Always show the NEXT exercise (not next set)
+              const nextExIndex = state.currentExerciseIndex + 1;
+              const nextExercise = currentBlock.exercises[nextExIndex];
               
-              const isNextSet = state.currentSet < state.totalSets;
-              const nextExercise = isNextSet ? currentExercise : currentBlock.exercises[nextExIndex];
-              
-              if (!nextExercise && !isNextSet) {
+              if (!nextExercise) {
                 // Check if there's a next block
                 const nextBlockIndex = state.currentBlockIndex + 1;
                 const nextBlock = session.blocks[nextBlockIndex];
                 if (nextBlock && nextBlock.exercises.length > 0) {
+                  const firstExerciseOfNextBlock = nextBlock.exercises[0];
                   return (
-                    <div className="bg-secondary/50 rounded-xl p-4 text-center">
-                      <p className="text-xs text-muted-foreground mb-1">Prochain bloc</p>
-                      <p className="font-medium text-foreground">{nextBlock.block_name}</p>
+                    <div className="bg-secondary/50 rounded-xl p-4">
+                      <p className="text-xs text-muted-foreground mb-1 text-center">Prochain exercice</p>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                          <Dumbbell className="w-5 h-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-foreground truncate">
+                            {firstExerciseOfNextBlock.exercise_name}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {nextBlock.block_name}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   );
                 }
                 return null;
               }
 
-              if (!nextExercise) return null;
-
               return (
                 <div className="bg-secondary/50 rounded-xl p-4">
-                  <p className="text-xs text-muted-foreground mb-1 text-center">
-                    {isNextSet ? 'Prochaine série' : 'Prochain exercice'}
-                  </p>
+                  <p className="text-xs text-muted-foreground mb-1 text-center">Prochain exercice</p>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
                       <Dumbbell className="w-5 h-5 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-foreground truncate">
-                        {isNextSet ? `Série ${state.currentSet}/${state.totalSets}` : nextExercise.exercise_name}
+                        {nextExercise.exercise_name}
                       </p>
-                      {!isNextSet && (
-                        <p className="text-sm text-muted-foreground">
-                          {formatRange(nextExercise.sets)} série{(getNumericValue(nextExercise.sets) || 1) > 1 ? 's' : ''}
-                          {nextExercise.reps && ` • ${formatRange(nextExercise.reps)} reps`}
-                          {nextExercise.rir !== null && nextExercise.rir !== undefined && ` • RIR ${formatRange(nextExercise.rir)}`}
-                        </p>
-                      )}
+                      <p className="text-sm text-muted-foreground">
+                        {formatRange(nextExercise.sets)} série{(getNumericValue(nextExercise.sets) || 1) > 1 ? 's' : ''}
+                        {nextExercise.reps && ` • ${formatRange(nextExercise.reps)} reps`}
+                        {nextExercise.rir !== null && nextExercise.rir !== undefined && ` • RIR ${formatRange(nextExercise.rir)}`}
+                      </p>
                     </div>
                   </div>
                 </div>
