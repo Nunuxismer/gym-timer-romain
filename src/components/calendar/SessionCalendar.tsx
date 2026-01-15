@@ -92,7 +92,11 @@ export function SessionCalendar({
           return (
             <button
               key={day.toISOString()}
-              onClick={() => onSelectDate(day)}
+              onClick={() => {
+                onSelectDate(day);
+                // Open schedule dialog directly on click
+                onScheduleSession(day);
+              }}
               className={cn(
                 'aspect-square flex flex-col items-center justify-center rounded-lg transition-colors relative',
                 'hover:bg-secondary',
