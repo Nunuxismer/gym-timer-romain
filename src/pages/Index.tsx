@@ -58,7 +58,7 @@ const Index = () => {
   const { user } = useAuth();
 
   // Cloud data hooks
-  const { sessions: savedSessions } = useSavedSessions();
+  const { sessions: savedSessions, addSession: addSavedSession } = useSavedSessions();
   const { scheduledSessions, scheduleSession, updateScheduledSession, deleteScheduledSession } = useScheduledSessions();
   const { history, deleteHistoryEntry } = useSessionHistory();
 
@@ -229,6 +229,26 @@ const Index = () => {
       setView('home');
     }
   }, [selectedJsonSession, updateJsonSession]);
+
+  // Save local session to cloud
+  const handleSaveToCloud = useCallback(async (sessionId: string) => {
+    if (!user) {
+      toast({ 
+        title: 'Connexion requise', 
+        description: 'Connectez-vous pour sauvegarder dans le cloud',
+        variant: 'destructive' 
+      });
+      return;
+    }
+    
+    const session = getJsonSession(sessionId);
+    if (session) {
+      const result = await addSavedSession(session);
+      if (result) {
+        toast({ title: 'Séance sauvegardée dans le cloud' });
+      }
+    }
+  }, [user, getJsonSession, addSavedSession]);
 
   // Common handlers
   const handleDeleteConfirm = useCallback(() => {
@@ -461,6 +481,8 @@ const Index = () => {
                       onEdit={handleEditJsonSession}
                       onDelete={handleDeleteJsonSession}
                       onImport={() => setView('json-import')}
+                      onSaveToCloud={handleSaveToCloud}
+                      isLoggedIn={!!user}
                     />
                   </motion.div>
                 )}
