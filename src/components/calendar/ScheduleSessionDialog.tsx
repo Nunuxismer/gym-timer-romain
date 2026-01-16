@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Calendar, X } from 'lucide-react';
+import { Calendar, X, Cloud, HardDrive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -9,18 +9,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { SavedSession } from '@/hooks/useSavedSessions';
+import type { StoredSession } from '@/types/jsonSession';
 import { cn } from '@/lib/utils';
+
+export interface SchedulableSession {
+  id: string;
+  name: string;
+  type: 'cloud' | 'local';
+}
 
 interface ScheduleSessionDialogProps {
   date: Date;
   savedSessions: SavedSession[];
-  onSchedule: (sessionId: string, date: Date, notes?: string) => Promise<void>;
+  localSessions?: StoredSession[];
+  onSchedule: (sessionId: string, date: Date, notes?: string, isLocal?: boolean) => Promise<void>;
   onClose: () => void;
 }
 
 export function ScheduleSessionDialog({
   date: initialDate,
   savedSessions,
+  localSessions = [],
   onSchedule,
   onClose,
 }: ScheduleSessionDialogProps) {
@@ -29,12 +38,20 @@ export function ScheduleSessionDialog({
   const [notes, setNotes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Combine cloud and local sessions into a unified list
+  const allSessions: SchedulableSession[] = [
+    ...savedSessions.map(s => ({ id: s.id, name: s.name, type: 'cloud' as const })),
+    ...localSessions.map(s => ({ id: `local:${s.session.session_id}`, name: s.session.session_name, type: 'local' as const })),
+  ];
+
   const handleSubmit = async () => {
     if (!selectedSessionId) return;
     
     setIsLoading(true);
     try {
-      await onSchedule(selectedSessionId, selectedDate, notes || undefined);
+      const isLocal = selectedSessionId.startsWith('local:');
+      const actualId = isLocal ? selectedSessionId.replace('local:', '') : selectedSessionId;
+      await onSchedule(actualId, selectedDate, notes || undefined, isLocal);
       onClose();
     } finally {
       setIsLoading(false);
@@ -60,16 +77,23 @@ export function ScheduleSessionDialog({
                 <SelectValue placeholder="Choisir une séance" />
               </SelectTrigger>
               <SelectContent>
-                {savedSessions.map(session => (
+                {allSessions.map(session => (
                   <SelectItem key={session.id} value={session.id}>
-                    {session.name}
+                    <div className="flex items-center gap-2">
+                      {session.type === 'cloud' ? (
+                        <Cloud className="w-3 h-3 text-primary" />
+                      ) : (
+                        <HardDrive className="w-3 h-3 text-muted-foreground" />
+                      )}
+                      {session.name}
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {savedSessions.length === 0 && (
+            {allSessions.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                Aucune séance sauvegardée. Importez d'abord une séance.
+                Aucune séance disponible. Importez d'abord une séance.
               </p>
             )}
           </div>

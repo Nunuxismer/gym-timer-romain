@@ -685,8 +685,19 @@ const Index = () => {
         <ScheduleSessionDialog
           date={scheduleDialogDate}
           savedSessions={savedSessions}
-          onSchedule={async (savedSessionId, date, notes) => {
-            const result = await scheduleSession(savedSessionId, date, notes);
+          localSessions={jsonSessions}
+          onSchedule={async (sessionId, date, notes, isLocal) => {
+            // For now, only cloud sessions can be scheduled (need saved_session_id)
+            // Local sessions would need to be saved to cloud first
+            if (isLocal) {
+              toast({ 
+                title: 'Fonctionnalité à venir',
+                description: 'Sauvegardez d\'abord la séance dans le cloud pour la planifier.',
+                variant: 'destructive'
+              });
+              return;
+            }
+            const result = await scheduleSession(sessionId, date, notes);
             if (result) {
               toast({ title: 'Séance planifiée' });
               setScheduleDialogOpen(false);
