@@ -58,7 +58,7 @@ const Index = () => {
   const { user } = useAuth();
 
   // Cloud data hooks
-  const { sessions: savedSessions, addSession: addSavedSession } = useSavedSessions();
+  const { sessions: savedSessions, addSession: addSavedSession, getSession: getSavedSession } = useSavedSessions();
   const { scheduledSessions, scheduleSession, updateScheduledSession, deleteScheduledSession } = useScheduledSessions();
   const { history, deleteHistoryEntry } = useSessionHistory();
 
@@ -298,6 +298,44 @@ const Index = () => {
     setView('home');
   }, []);
 
+  // Start a scheduled cloud session
+  const handleStartScheduledSession = useCallback((savedSessionId: string, scheduledSessionId: string) => {
+    const savedSession = getSavedSession(savedSessionId);
+    if (savedSession) {
+      // Convert SavedSession to StoredSession format for the run screen
+      const storedSession = {
+        ...savedSession.session_data,
+        storedAt: savedSession.created_at,
+        lastRunAt: null,
+        _scheduledSessionId: scheduledSessionId, // Track which scheduled session this is
+      };
+      setSelectedJsonSession(storedSession as any);
+      setView('json-run');
+    } else {
+      toast({ 
+        title: 'Erreur', 
+        description: 'Séance introuvable',
+        variant: 'destructive' 
+      });
+    }
+  }, [getSavedSession]);
+
+  // Mark a scheduled session as complete
+  const handleMarkScheduledComplete = useCallback(async (scheduledSessionId: string) => {
+    const result = await updateScheduledSession(scheduledSessionId, { completed: true });
+    if (result) {
+      toast({ title: 'Séance marquée comme terminée' });
+    }
+  }, [updateScheduledSession]);
+
+  // Delete a scheduled session
+  const handleDeleteScheduledSession = useCallback(async (scheduledSessionId: string) => {
+    const result = await deleteScheduledSession(scheduledSessionId);
+    if (result) {
+      toast({ title: 'Planification supprimée' });
+    }
+  }, [deleteScheduledSession]);
+
   const editingEmomPreset = editingId && timerType === 'emom' ? getEmomPreset(editingId) : undefined;
   const editingRestPreset = editingId && timerType === 'rest' ? getRestPreset(editingId) : undefined;
 
@@ -517,6 +555,9 @@ const Index = () => {
                           setScheduleDialogDate(date);
                           setScheduleDialogOpen(true);
                         }}
+                        onStartSession={handleStartScheduledSession}
+                        onDeleteScheduledSession={handleDeleteScheduledSession}
+                        onMarkComplete={handleMarkScheduledComplete}
                       />
                     )}
                   </motion.div>

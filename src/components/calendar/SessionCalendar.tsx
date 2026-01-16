@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, addMonths, subMonths } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Play, Trash2, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ScheduledSession } from '@/hooks/useScheduledSessions';
@@ -12,6 +12,9 @@ interface SessionCalendarProps {
   savedSessions: SavedSession[];
   onSelectDate: (date: Date) => void;
   onScheduleSession: (date: Date) => void;
+  onStartSession?: (savedSessionId: string, scheduledSessionId: string) => void;
+  onDeleteScheduledSession?: (scheduledSessionId: string) => void;
+  onMarkComplete?: (scheduledSessionId: string) => void;
   selectedDate?: Date;
 }
 
@@ -20,6 +23,9 @@ export function SessionCalendar({
   savedSessions,
   onSelectDate,
   onScheduleSession,
+  onStartSession,
+  onDeleteScheduledSession,
+  onMarkComplete,
   selectedDate,
 }: SessionCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -152,17 +158,64 @@ export function SessionCalendar({
                     session.completed && 'opacity-60'
                   )}
                 >
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={cn(
-                        'w-2 h-2 rounded-full',
-                        session.completed ? 'bg-timer-complete' : 'bg-primary'
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={cn(
+                          'w-2 h-2 rounded-full',
+                          session.completed ? 'bg-timer-complete' : 'bg-primary'
+                        )}
+                      />
+                      <span className="font-medium text-sm">{getSessionName(session)}</span>
+                      {session.completed && (
+                        <span className="text-xs text-muted-foreground">(Terminée)</span>
                       )}
-                    />
-                    <span className="font-medium text-sm">{getSessionName(session)}</span>
-                    {session.completed && (
-                      <span className="text-xs text-muted-foreground">(Terminée)</span>
-                    )}
+                    </div>
+                    
+                    <div className="flex items-center gap-1">
+                      {!session.completed && session.saved_session_id && onStartSession && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="h-7 px-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onStartSession(session.saved_session_id!, session.id);
+                          }}
+                        >
+                          <Play className="w-3 h-3 mr-1" />
+                          Lancer
+                        </Button>
+                      )}
+                      {!session.completed && onMarkComplete && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onMarkComplete(session.id);
+                          }}
+                          title="Marquer comme terminée"
+                        >
+                          <CheckCircle className="w-4 h-4 text-timer-complete" />
+                        </Button>
+                      )}
+                      {onDeleteScheduledSession && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteScheduledSession(session.id);
+                          }}
+                          title="Supprimer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   {session.notes && (
                     <p className="text-xs text-muted-foreground mt-1 pl-4">{session.notes}</p>
