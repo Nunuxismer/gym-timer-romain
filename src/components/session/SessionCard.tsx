@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Play, Eye, MoreVertical, Trash2, Clock, Target, Activity, Pencil } from 'lucide-react';
+import { Play, Eye, MoreVertical, Trash2, Clock, Target, Activity, Pencil, Cloud } from 'lucide-react';
 import type { StoredSession } from '@/types/jsonSession';
 import { SESSION_TYPE_FR, DOMINANT_FOCUS_FR } from '@/types/jsonSession';
 
@@ -11,9 +11,11 @@ interface SessionCardProps {
   onView: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onSaveToCloud?: () => void;
+  isLoggedIn?: boolean;
 }
 
-export function SessionCard({ session, onStart, onView, onEdit, onDelete }: SessionCardProps) {
+export function SessionCard({ session, onStart, onView, onEdit, onDelete, onSaveToCloud, isLoggedIn }: SessionCardProps) {
   const { session: meta, blocks } = session;
   const totalExercises = blocks.reduce((sum, b) => sum + b.exercises.length, 0);
 
@@ -63,6 +65,12 @@ export function SessionCard({ session, onStart, onView, onEdit, onDelete }: Sess
                 <Pencil className="w-4 h-4 mr-2" />
                 Éditer
               </DropdownMenuItem>
+              {isLoggedIn && onSaveToCloud && (
+                <DropdownMenuItem onClick={onSaveToCloud}>
+                  <Cloud className="w-4 h-4 mr-2" />
+                  Sauvegarder dans le cloud
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
                 <Trash2 className="w-4 h-4 mr-2" />
                 Supprimer

@@ -11,9 +11,11 @@ interface SessionListProps {
   onView: (sessionId: string) => void;
   onEdit: (sessionId: string) => void;
   onDelete: (sessionId: string) => void;
+  onSaveToCloud?: (sessionId: string) => void;
+  isLoggedIn?: boolean;
 }
 
-export function SessionList({ sessions, onImport, onStart, onView, onEdit, onDelete }: SessionListProps) {
+export function SessionList({ sessions, onImport, onStart, onView, onEdit, onDelete, onSaveToCloud, isLoggedIn }: SessionListProps) {
   if (sessions.length === 0) {
     return (
       <div className="text-center py-16">
@@ -59,6 +61,8 @@ export function SessionList({ sessions, onImport, onStart, onView, onEdit, onDel
             onView={() => onView(session.session.session_id)}
             onEdit={() => onEdit(session.session.session_id)}
             onDelete={() => onDelete(session.session.session_id)}
+            onSaveToCloud={onSaveToCloud ? () => onSaveToCloud(session.session.session_id) : undefined}
+            isLoggedIn={isLoggedIn}
           />
         ))}
       </div>
