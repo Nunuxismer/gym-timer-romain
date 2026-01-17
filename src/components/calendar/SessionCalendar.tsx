@@ -99,9 +99,8 @@ export function SessionCalendar({
             <button
               key={day.toISOString()}
               onClick={() => {
+                // Just select the day - don't open dialog automatically
                 onSelectDate(day);
-                // Open schedule dialog directly on click
-                onScheduleSession(day);
               }}
               className={cn(
                 'aspect-square flex flex-col items-center justify-center rounded-lg transition-colors relative',
