@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
@@ -77,7 +78,7 @@ export function useScheduledSessions() {
         .insert({
           user_id: user.id,
           saved_session_id: savedSessionId,
-          scheduled_date: date.toISOString().split('T')[0],
+          scheduled_date: format(date, 'yyyy-MM-dd'),
           notes: notes?.trim() || null,
         })
         .select()
@@ -156,12 +157,12 @@ export function useScheduledSessions() {
   }, [user]);
 
   const getSessionsForDate = useCallback((date: Date): ScheduledSession[] => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = format(date, 'yyyy-MM-dd');
     return scheduledSessions.filter(s => s.scheduled_date === dateStr);
   }, [scheduledSessions]);
 
   const getUpcomingSessions = useCallback((limit: number = 5): ScheduledSession[] => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = format(new Date(), 'yyyy-MM-dd');
     return scheduledSessions
       .filter(s => s.scheduled_date >= today && !s.completed)
       .slice(0, limit);
