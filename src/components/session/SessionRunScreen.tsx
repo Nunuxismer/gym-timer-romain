@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +12,6 @@ import {
   RotateCcw, 
   X, 
   Check,
-  Clock,
   Dumbbell,
   Info,
 } from 'lucide-react';
@@ -20,17 +19,25 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { StoredSession } from '@/types/jsonSession';
 import { 
   BLOCK_TYPE_FR, 
-  MOVEMENT_PATTERN_FR, 
   formatRange,
   getNumericValue,
 } from '@/types/jsonSession';
 import { useSessionExecution } from '@/hooks/useSessionExecution';
+import { usePerformanceTracking } from '@/hooks/usePerformanceTracking';
+import { useSessionHistory } from '@/hooks/useSessionHistory';
+import { useAuth } from '@/contexts/AuthContext';
 import { audioManager } from '@/lib/audio';
 import { haptics } from '@/lib/haptics';
 import { wakeLockManager } from '@/lib/wakeLock';
+import { SetPerformanceEditor } from './SetPerformanceEditor';
+import { SessionCompleteScreen } from './SessionCompleteScreen';
+import { TargetWeightEditor } from './TargetWeightEditor';
+import { toast } from '@/hooks/use-toast';
 
 interface SessionRunScreenProps {
   session: StoredSession;
+  savedSessionId?: string;
+  scheduledSessionId?: string;
   onBack: () => void;
 }
 
@@ -40,7 +47,16 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-export function SessionRunScreen({ session, onBack }: SessionRunScreenProps) {
+export function SessionRunScreen({ 
+  session, 
+  savedSessionId,
+  scheduledSessionId,
+  onBack 
+}: SessionRunScreenProps) {
+  const { user } = useAuth();
+  const { recordSession } = useSessionHistory();
+  const [isSaving, setIsSaving] = useState(false);
+
   const {
     state,
     currentBlock,
@@ -60,6 +76,38 @@ export function SessionRunScreen({ session, onBack }: SessionRunScreenProps) {
     setProgress,
     roundProgress,
   } = useSessionExecution(session);
+
+  const {
+    performanceData,
+    setTargetWeight,
+    setActualWeight,
+    setActualReps,
+    markSetCompleted,
+    setSessionNotes,
+    setRating,
+    initializeExercise,
+    getExercisePerformance,
+    getSetPerformance,
+    getExerciseLogs,
+    reset: resetPerformance,
+  } = usePerformanceTracking();
+
+  // Initialize exercise performance when entering an exercise
+  useEffect(() => {
+    if (currentExercise && state.phase === 'exercise_work') {
+      initializeExercise(currentExercise, state.totalSets);
+    }
+  }, [currentExercise, state.phase, state.totalSets, initializeExercise]);
+
+  // Mark set as completed when finishing a set
+  const handleFinishSetWithTracking = useCallback(() => {
+    if (currentExercise) {
+      markSetCompleted(currentExercise.exercise_id, state.currentSet - 1);
+    }
+    haptics.medium();
+    audioManager.playPhaseChange('rest');
+    finishSet();
+  }, [currentExercise, state.currentSet, markSetCompleted, finishSet]);
 
   // Wake lock
   useEffect(() => {
@@ -100,12 +148,6 @@ export function SessionRunScreen({ session, onBack }: SessionRunScreenProps) {
     startBlock();
   }, [startBlock, currentBlock]);
 
-  const handleFinishSet = useCallback(() => {
-    haptics.medium();
-    audioManager.playPhaseChange('rest');
-    finishSet();
-  }, [finishSet]);
-
   const handleSkipRest = useCallback(() => {
     haptics.light();
     skipRest();
@@ -137,13 +179,60 @@ export function SessionRunScreen({ session, onBack }: SessionRunScreenProps) {
 
   const handleRestart = useCallback(() => {
     haptics.medium();
+    resetPerformance();
     restartSession();
-  }, [restartSession]);
+  }, [restartSession, resetPerformance]);
 
   const handleExit = useCallback(() => {
     wakeLockManager.release();
     onBack();
   }, [onBack]);
+
+  const handleSaveSession = useCallback(async () => {
+    if (!user) {
+      toast({
+        title: 'Connexion requise',
+        description: 'Connectez-vous pour sauvegarder vos séances',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const durationSeconds = Math.floor(
+        (Date.now() - performanceData.startedAt.getTime()) / 1000
+      );
+
+      const result = await recordSession({
+        savedSessionId,
+        scheduledSessionId,
+        sessionName: session.session.session_name,
+        sessionData: session,
+        startedAt: performanceData.startedAt,
+        durationSeconds,
+        notes: performanceData.sessionNotes || undefined,
+        rating: performanceData.rating,
+        exerciseLogs: getExerciseLogs(),
+      });
+
+      if (result) {
+        toast({
+          title: 'Séance sauvegardée !',
+          description: 'Votre performance a été enregistrée',
+        });
+      }
+    } catch (error) {
+      console.error('Error saving session:', error);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de sauvegarder la séance',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [user, performanceData, session, savedSessionId, scheduledSessionId, recordSession, getExerciseLogs]);
 
   // Phase-specific colors
   const getPhaseColor = () => {
@@ -259,29 +348,52 @@ export function SessionRunScreen({ session, onBack }: SessionRunScreenProps) {
             )}
           </div>
 
-          {/* Exercise list preview */}
+          {/* Exercise list preview with target weight */}
           <div className="flex-1 overflow-auto">
             <h3 className="text-sm font-semibold text-muted-foreground mb-3">
               {currentBlock.exercises.length} exercice{currentBlock.exercises.length > 1 ? 's' : ''}
             </h3>
             <div className="space-y-2">
-              {currentBlock.exercises.map((ex, idx) => (
-                <Card key={ex.exercise_id} className="bg-secondary/50">
-                  <CardContent className="p-3 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm font-bold text-primary">{idx + 1}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-foreground truncate">{ex.exercise_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatRange(ex.sets)} série{(getNumericValue(ex.sets) || 1) > 1 ? 's' : ''} 
-                        {ex.reps && ` • ${formatRange(ex.reps)} reps`}
-                        {ex.duration_sec && ` • ${formatRange(ex.duration_sec, 's')}`}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+              {currentBlock.exercises.map((ex, idx) => {
+                const perf = getExercisePerformance(ex.exercise_id);
+                const targetWeight = perf?.sets[0]?.targetWeight;
+                
+                return (
+                  <Card key={ex.exercise_id} className="bg-secondary/50">
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                          <span className="text-sm font-bold text-primary">{idx + 1}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-foreground truncate">{ex.exercise_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatRange(ex.sets)} série{(getNumericValue(ex.sets) || 1) > 1 ? 's' : ''} 
+                            {ex.reps && ` • ${formatRange(ex.reps)} reps`}
+                            {ex.duration_sec && ` • ${formatRange(ex.duration_sec, 's')}`}
+                          </p>
+                        </div>
+                        {/* Target weight button for standard/circuit blocks */}
+                        {(currentBlock.block_type === 'standard' || currentBlock.block_type === 'circuit') && (
+                          <TargetWeightEditor
+                            exercise={ex}
+                            totalSets={getNumericValue(ex.sets) || 1}
+                            currentTargetWeight={targetWeight}
+                            onSetTargetWeight={(weight) => {
+                              initializeExercise(ex, getNumericValue(ex.sets) || 1);
+                              // Set target weight for all sets
+                              const sets = getNumericValue(ex.sets) || 1;
+                              for (let i = 0; i < sets; i++) {
+                                setTargetWeight(ex.exercise_id, i, weight);
+                              }
+                            }}
+                          />
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </div>
 
@@ -302,45 +414,19 @@ export function SessionRunScreen({ session, onBack }: SessionRunScreenProps) {
     );
   }
 
-  // Render complete screen
+  // Render complete screen with notes and saving
   if (state.phase === 'complete') {
     return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="min-h-screen bg-background flex flex-col items-center justify-center p-6"
-      >
-        <div className="w-24 h-24 rounded-full bg-timer-complete/20 flex items-center justify-center mb-6">
-          <Check className="w-12 h-12 text-timer-complete" />
-        </div>
-        
-        <h1 className="text-3xl font-bold text-foreground mb-2">
-          Séance terminée !
-        </h1>
-        <p className="text-muted-foreground text-center mb-8">
-          Excellent travail ! 💪
-        </p>
-
-        <div className="space-y-3 w-full max-w-xs">
-          <Button
-            variant="default"
-            size="lg"
-            onClick={handleRestart}
-            className="w-full"
-          >
-            <RotateCcw className="w-5 h-5 mr-2" />
-            Recommencer
-          </Button>
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={handleExit}
-            className="w-full"
-          >
-            Retour à l'accueil
-          </Button>
-        </div>
-      </motion.div>
+      <SessionCompleteScreen
+        session={session}
+        performanceData={performanceData}
+        onSetNotes={setSessionNotes}
+        onSetRating={setRating}
+        onSave={handleSaveSession}
+        onRestart={handleRestart}
+        onExit={handleExit}
+        isSaving={isSaving}
+      />
     );
   }
 
@@ -353,6 +439,11 @@ export function SessionRunScreen({ session, onBack }: SessionRunScreenProps) {
   const progressPercent = state.timeRemaining > 0 
     ? ((state.timeElapsed) / (state.timeElapsed + state.timeRemaining)) * 100
     : 100;
+
+  // Get current set performance for editing during rest
+  const currentSetPerformance = currentExercise 
+    ? getSetPerformance(currentExercise.exercise_id, state.currentSet - 1)
+    : undefined;
 
   return (
     <motion.div
@@ -392,7 +483,7 @@ export function SessionRunScreen({ session, onBack }: SessionRunScreenProps) {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col p-6">
+      <div className="flex-1 flex flex-col p-6 overflow-auto">
         {/* REST PHASE: Show exercise info at top */}
         {isRestPhase && currentExercise && (
           <motion.div
@@ -444,7 +535,7 @@ export function SessionRunScreen({ session, onBack }: SessionRunScreenProps) {
                 {currentExercise.exercise_name}
               </h2>
               
-              {/* Key metrics: Reps, Sets, RIR */}
+              {/* Key metrics: Reps, Sets, RIR, Weight */}
               <div className="flex flex-wrap justify-center gap-3 mb-4">
                 {currentExercise.reps && (
                   <div className="bg-secondary rounded-xl px-4 py-2">
@@ -468,6 +559,19 @@ export function SessionRunScreen({ session, onBack }: SessionRunScreenProps) {
                     <p className="text-lg font-bold text-primary">{formatRange(currentExercise.rir)}</p>
                   </div>
                 )}
+                {/* Show target weight if set */}
+                {(() => {
+                  const perf = getSetPerformance(currentExercise.exercise_id, state.currentSet - 1);
+                  if (perf?.targetWeight) {
+                    return (
+                      <div className="bg-accent/20 rounded-xl px-4 py-2 border-2 border-accent/30">
+                        <p className="text-xs text-accent-foreground font-medium">Poids</p>
+                        <p className="text-lg font-bold text-accent-foreground">{perf.targetWeight}kg</p>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
 
               {/* Secondary info */}
@@ -527,6 +631,23 @@ export function SessionRunScreen({ session, onBack }: SessionRunScreenProps) {
             </div>
           )}
         </div>
+
+        {/* REST PHASE: Performance editor */}
+        {isRestPhase && currentExercise && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4"
+          >
+            <SetPerformanceEditor
+              exercise={currentExercise}
+              setIndex={state.currentSet - 1}
+              performance={currentSetPerformance}
+              onUpdateReps={(reps) => setActualReps(currentExercise.exercise_id, state.currentSet - 1, reps)}
+              onUpdateWeight={(weight) => setActualWeight(currentExercise.exercise_id, state.currentSet - 1, weight)}
+            />
+          </motion.div>
+        )}
 
         {/* REST PHASE: Show next exercise at bottom */}
         {isRestPhase && currentBlock && (
@@ -658,7 +779,7 @@ export function SessionRunScreen({ session, onBack }: SessionRunScreenProps) {
               <Button
                 variant="default"
                 size="xl"
-                onClick={handleFinishSet}
+                onClick={handleFinishSetWithTracking}
                 className="w-full h-20 text-xl rounded-xl bg-timer-activity hover:bg-timer-activity/90"
               >
                 <Check className="w-8 h-8 mr-3" />
