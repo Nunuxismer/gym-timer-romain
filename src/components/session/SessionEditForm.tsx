@@ -7,10 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Save, ChevronDown, ChevronUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { StoredSession, JsonSession, Block, Exercise, SessionType, DominantFocus, BlockType, RangeOrNumber } from '@/types/jsonSession';
-import { SESSION_TYPE_FR, DOMINANT_FOCUS_FR, BLOCK_TYPE_FR, formatRange } from '@/types/jsonSession';
+import { SESSION_TYPE_FR, DOMINANT_FOCUS_FR, BLOCK_TYPE_FR, formatRange, getNumericValue } from '@/types/jsonSession';
 
 interface SessionEditFormProps {
   session: StoredSession;
@@ -370,6 +371,25 @@ export function SessionEditForm({ session, onSave, onBack }: SessionEditFormProp
                                 />
                               </div>
                             </div>
+
+                            {/* Bilateral checkbox - only show for timed exercises */}
+                            {(getNumericValue(exercise.duration_sec) || getNumericValue(exercise.isometric_hold_sec)) && (
+                              <div className="flex items-center space-x-2 pt-2">
+                                <Checkbox
+                                  id={`bilateral-${blockIndex}-${exIndex}`}
+                                  checked={exercise.bilateral || false}
+                                  onCheckedChange={(checked) => 
+                                    handleExerciseChange(blockIndex, exIndex, 'bilateral', checked === true)
+                                  }
+                                />
+                                <Label 
+                                  htmlFor={`bilateral-${blockIndex}-${exIndex}`}
+                                  className="text-xs text-muted-foreground cursor-pointer"
+                                >
+                                  Bi-latéral (gauche puis droite)
+                                </Label>
+                              </div>
+                            )}
                           </CardContent>
                         </Card>
                       ))}
