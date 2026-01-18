@@ -1,20 +1,23 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Clock, Calendar, Star, ChevronRight, Trash2, FileText } from 'lucide-react';
+import { Clock, Calendar, Star, ChevronRight, Trash2, FileText, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import type { SessionHistoryEntry } from '@/hooks/useSessionHistory';
+import type { SessionHistoryEntry, ExerciseLog } from '@/hooks/useSessionHistory';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ExportHistoryDialog } from './ExportHistoryDialog';
 
 interface SessionHistoryListProps {
   history: SessionHistoryEntry[];
   onViewDetails: (entry: SessionHistoryEntry) => void;
   onDelete: (id: string) => Promise<boolean>;
+  getExerciseLogs: (sessionHistoryId: string) => Promise<ExerciseLog[]>;
 }
 
-export function SessionHistoryList({ history, onViewDetails, onDelete }: SessionHistoryListProps) {
+export function SessionHistoryList({ history, onViewDetails, onDelete, getExerciseLogs }: SessionHistoryListProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
   const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -50,6 +53,19 @@ export function SessionHistoryList({ history, onViewDetails, onDelete }: Session
 
   return (
     <>
+      {/* Export button */}
+      <div className="flex justify-end mb-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setExportDialogOpen(true)}
+          className="gap-2"
+        >
+          <Download className="w-4 h-4" />
+          Exporter PDF
+        </Button>
+      </div>
+
       <div className="space-y-3">
         {history.map(entry => (
           <div
@@ -114,6 +130,13 @@ export function SessionHistoryList({ history, onViewDetails, onDelete }: Session
         confirmLabel="Supprimer"
         onConfirm={handleDelete}
         variant="destructive"
+      />
+
+      <ExportHistoryDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        history={history}
+        getExerciseLogs={getExerciseLogs}
       />
     </>
   );
