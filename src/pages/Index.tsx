@@ -60,7 +60,7 @@ const Index = () => {
   // Cloud data hooks
   const { sessions: savedSessions, addSession: addSavedSession, getSession: getSavedSession } = useSavedSessions();
   const { scheduledSessions, scheduleSession, updateScheduledSession, deleteScheduledSession } = useScheduledSessions();
-  const { history, deleteHistoryEntry } = useSessionHistory();
+  const { history, deleteHistoryEntry, getExerciseLogs } = useSessionHistory();
 
   const [timerType, setTimerType] = useState<TimerType>('emom');
   const [view, setView] = useState<View>('home');
@@ -591,6 +591,7 @@ const Index = () => {
                           setView('history-detail');
                         }}
                         onDelete={deleteHistoryEntry}
+                        getExerciseLogs={getExerciseLogs}
                       />
                     )}
                   </motion.div>
