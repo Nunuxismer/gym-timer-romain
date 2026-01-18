@@ -24,6 +24,7 @@ export interface ExecutionState {
   timeElapsed: number;     // seconds since phase started
   isTimerRunning: boolean;
   isFreeExercise: boolean; // No timer enforced
+  bilateralSide: 'left' | 'right' | null; // Current side for bilateral exercises
 }
 
 export interface UseSessionExecutionReturn {
@@ -65,6 +66,7 @@ function getInitialState(): ExecutionState {
     timeElapsed: 0,
     isTimerRunning: false,
     isFreeExercise: false,
+    bilateralSide: null,
   };
 }
 
@@ -229,6 +231,7 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
     } else if (blockType === 'circuit') {
       const rounds = getTotalRounds(currentBlock);
       const workDuration = getExerciseWorkDuration(firstExercise);
+      const isBilateral = firstExercise.bilateral && workDuration;
 
       setState(prev => ({
         ...prev,
@@ -242,11 +245,13 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
         timeElapsed: 0,
         isTimerRunning: false,
         isFreeExercise: !workDuration,
+        bilateralSide: isBilateral ? 'left' : null,
       }));
     } else {
       // Standard block
       const sets = getTotalSets(firstExercise);
       const workDuration = getExerciseWorkDuration(firstExercise);
+      const isBilateral = firstExercise.bilateral && workDuration;
 
       setState(prev => ({
         ...prev,
@@ -260,6 +265,7 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
         timeElapsed: 0,
         isTimerRunning: false,
         isFreeExercise: !workDuration,
+        bilateralSide: isBilateral ? 'left' : null,
       }));
     }
   }, [currentBlock, blocks.length, getBlockDuration, getTotalRounds, getTotalSets, getExerciseWorkDuration]);
@@ -268,18 +274,35 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
     if (!currentBlock || !currentExercise) return;
 
     const blockType = currentBlock.block_type;
+    const workDuration = getExerciseWorkDuration(currentExercise);
+
+    // Handle bilateral exercise: if on left side, switch to right side
+    if (state.bilateralSide === 'left' && currentExercise.bilateral && workDuration) {
+      setState(prev => ({
+        ...prev,
+        bilateralSide: 'right',
+        timeRemaining: workDuration,
+        timeElapsed: 0,
+        isTimerRunning: false,
+      }));
+      return;
+    }
+
+    // Reset bilateral side for next exercise
+    const resetBilateral = () => ({ bilateralSide: null as 'left' | 'right' | null });
 
     if (blockType === 'activation' || blockType === 'cardio') {
       // Move to next block
       const nextBlockIndex = state.currentBlockIndex + 1;
       if (nextBlockIndex >= blocks.length) {
-        setState(prev => ({ ...prev, phase: 'complete' }));
+        setState(prev => ({ ...prev, phase: 'complete', ...resetBilateral() }));
       } else {
         setState(prev => ({
           ...prev,
           currentBlockIndex: nextBlockIndex,
           currentExerciseIndex: 0,
           phase: 'block_intro',
+          ...resetBilateral(),
         }));
       }
       return;
@@ -390,31 +413,35 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
       // After between_rounds rest: start new round
       if (state.phase === 'between_exercises') {
         const nextExIndex = state.currentExerciseIndex + 1;
-        const nextExercise = currentBlock.exercises[nextExIndex];
-        const workDuration = getExerciseWorkDuration(nextExercise);
+        const nextEx = currentBlock.exercises[nextExIndex];
+        const nextWorkDuration = getExerciseWorkDuration(nextEx);
+        const nextIsBilateral = nextEx.bilateral && nextWorkDuration;
         setState(prev => ({
           ...prev,
           phase: 'exercise_work',
           currentExerciseIndex: nextExIndex,
-          timeRemaining: workDuration || 0,
+          timeRemaining: nextWorkDuration || 0,
           timeElapsed: 0,
           isTimerRunning: false,
-          isFreeExercise: !workDuration,
+          isFreeExercise: !nextWorkDuration,
+          bilateralSide: nextIsBilateral ? 'left' : null,
         }));
       } else if (state.phase === 'between_rounds') {
-        const firstExercise = currentBlock.exercises[0];
-        const workDuration = getExerciseWorkDuration(firstExercise);
+        const firstEx = currentBlock.exercises[0];
+        const firstWorkDuration = getExerciseWorkDuration(firstEx);
         const totalRounds = getTotalRounds(currentBlock);
+        const firstIsBilateral = firstEx.bilateral && firstWorkDuration;
         setState(prev => ({
           ...prev,
           phase: 'exercise_work',
           currentExerciseIndex: 0,
           currentRound: prev.currentRound + 1,
           totalRounds: totalRounds,
-          timeRemaining: workDuration || 0,
+          timeRemaining: firstWorkDuration || 0,
           timeElapsed: 0,
           isTimerRunning: false,
-          isFreeExercise: !workDuration,
+          isFreeExercise: !firstWorkDuration,
+          bilateralSide: firstIsBilateral ? 'left' : null,
         }));
       }
       return;
@@ -424,39 +451,43 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
     const nextSet = state.currentSet + 1;
     if (nextSet <= state.totalSets) {
       // More sets for this exercise
-      const workDuration = getExerciseWorkDuration(currentExercise);
+      const stdWorkDuration = getExerciseWorkDuration(currentExercise);
+      const stdIsBilateral = currentExercise.bilateral && stdWorkDuration;
       setState(prev => ({
         ...prev,
         phase: 'exercise_work',
         currentSet: nextSet,
-        timeRemaining: workDuration || 0,
+        timeRemaining: stdWorkDuration || 0,
         timeElapsed: 0,
         isTimerRunning: false,
-        isFreeExercise: !workDuration,
+        isFreeExercise: !stdWorkDuration,
+        bilateralSide: stdIsBilateral ? 'left' : null,
       }));
     } else {
       // Move to next exercise
       const nextExIndex = state.currentExerciseIndex + 1;
       if (nextExIndex < currentBlock.exercises.length) {
-        const nextExercise = currentBlock.exercises[nextExIndex];
-        const sets = getTotalSets(nextExercise);
-        const workDuration = getExerciseWorkDuration(nextExercise);
+        const nextEx = currentBlock.exercises[nextExIndex];
+        const sets = getTotalSets(nextEx);
+        const nextStdWorkDuration = getExerciseWorkDuration(nextEx);
+        const nextStdIsBilateral = nextEx.bilateral && nextStdWorkDuration;
         setState(prev => ({
           ...prev,
           phase: 'exercise_work',
           currentExerciseIndex: nextExIndex,
           currentSet: 1,
           totalSets: sets,
-          timeRemaining: workDuration || 0,
+          timeRemaining: nextStdWorkDuration || 0,
           timeElapsed: 0,
           isTimerRunning: false,
-          isFreeExercise: !workDuration,
+          isFreeExercise: !nextStdWorkDuration,
+          bilateralSide: nextStdIsBilateral ? 'left' : null,
         }));
       } else {
         // Block complete, move to next block
         const nextBlockIndex = state.currentBlockIndex + 1;
         if (nextBlockIndex >= blocks.length) {
-          setState(prev => ({ ...prev, phase: 'complete' }));
+          setState(prev => ({ ...prev, phase: 'complete', bilateralSide: null }));
         } else {
           setState(prev => ({
             ...prev,
@@ -464,6 +495,7 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
             currentExerciseIndex: 0,
             currentSet: 1,
             phase: 'block_intro',
+            bilateralSide: null,
           }));
         }
       }

@@ -531,9 +531,30 @@ export function SessionRunScreen({
           {/* Exercise info - WORK PHASE */}
           {currentExercise && state.phase === 'exercise_work' && (
             <div className="text-center mb-6 px-4 w-full">
-              <h2 className="text-2xl font-bold text-foreground mb-3">
+              <h2 className="text-2xl font-bold text-foreground mb-1">
                 {currentExercise.exercise_name}
               </h2>
+              
+              {/* Bilateral side indicator */}
+              {state.bilateralSide && (
+                <motion.div
+                  key={state.bilateralSide}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="mb-3"
+                >
+                  <Badge 
+                    variant="outline" 
+                    className={`text-lg px-4 py-1.5 font-bold ${
+                      state.bilateralSide === 'left' 
+                        ? 'bg-blue-500/20 text-blue-400 border-blue-400' 
+                        : 'bg-orange-500/20 text-orange-400 border-orange-400'
+                    }`}
+                  >
+                    {state.bilateralSide === 'left' ? '← CÔTÉ GAUCHE' : 'CÔTÉ DROIT →'}
+                  </Badge>
+                </motion.div>
+              )}
               
               {/* Key metrics: Reps, Sets, RIR, Weight */}
               <div className="flex flex-wrap justify-center gap-3 mb-4">

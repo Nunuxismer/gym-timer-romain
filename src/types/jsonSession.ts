@@ -81,6 +81,7 @@ export interface Exercise {
   coaching_cues?: string[] | null;
   safety_notes?: string[] | null;
   stop_conditions?: string[] | null;
+  bilateral?: boolean; // If true, timed exercise runs twice (left side, then right side)
 }
 
 // Block interface
