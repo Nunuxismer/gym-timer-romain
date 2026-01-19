@@ -8,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Save, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Save, ChevronDown, ChevronUp, Weight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { StoredSession, JsonSession, Block, Exercise, SessionType, DominantFocus, BlockType, RangeOrNumber } from '@/types/jsonSession';
 import { SESSION_TYPE_FR, DOMINANT_FOCUS_FR, BLOCK_TYPE_FR, formatRange, getNumericValue } from '@/types/jsonSession';
@@ -351,7 +351,7 @@ export function SessionEditForm({ session, onSave, onBack }: SessionEditFormProp
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-3 gap-2">
                               <div className="space-y-1">
                                 <Label className="text-xs">Tempo</Label>
                                 <Input
@@ -368,6 +368,21 @@ export function SessionEditForm({ session, onSave, onBack }: SessionEditFormProp
                                   onChange={(e) => handleExerciseChange(blockIndex, exIndex, 'rir', parseRangeInput(e.target.value))}
                                   className="h-9"
                                   placeholder="2-3"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs flex items-center gap-1">
+                                  <Weight className="w-3 h-3" />
+                                  Poids (kg)
+                                </Label>
+                                <Input
+                                  type="number"
+                                  value={exercise.target_weight ?? ''}
+                                  onChange={(e) => handleExerciseChange(blockIndex, exIndex, 'target_weight', e.target.value ? parseFloat(e.target.value) : null)}
+                                  className="h-9"
+                                  placeholder="20"
+                                  step={0.5}
+                                  min={0}
                                 />
                               </div>
                             </div>
