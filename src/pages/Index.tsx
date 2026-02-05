@@ -25,10 +25,12 @@ import { SessionRunScreen } from '@/components/session/SessionRunScreen';
 import { SessionEditForm } from '@/components/session/SessionEditForm';
 import { SessionCalendar } from '@/components/calendar/SessionCalendar';
 import { ScheduleSessionDialog } from '@/components/calendar/ScheduleSessionDialog';
+import { CreateCycleDialog } from '@/components/calendar/CreateCycleDialog';
+import type { TrainingCycleConfig } from '@/types/trainingCycle';
 import { SessionHistoryList } from '@/components/history/SessionHistoryList';
 import { SessionHistoryDetail } from '@/components/history/SessionHistoryDetail';
 import { Button } from '@/components/ui/button';
-import { Plus, Settings, Timer, Dumbbell, FileJson, Upload, Calendar, History } from 'lucide-react';
+import { Plus, Settings, Timer, Dumbbell, FileJson, Upload, Calendar, History, Repeat } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { importPreset } from '@/lib/storage';
 import { toast } from '@/hooks/use-toast';
@@ -77,6 +79,9 @@ const Index = () => {
   
   // History state
   const [selectedHistoryEntry, setSelectedHistoryEntry] = useState<SessionHistoryEntry | null>(null);
+  
+  // Cycle creation state
+  const [cycleDialogOpen, setCycleDialogOpen] = useState(false);
 
   // Initialize audio on first interaction
   const handleFirstInteraction = useCallback(() => {
@@ -336,6 +341,38 @@ const Index = () => {
     }
   }, [deleteScheduledSession]);
 
+  // Create a training cycle (generate multiple scheduled sessions)
+  const handleCreateCycle = useCallback(async (config: TrainingCycleConfig) => {
+    if (!user) return;
+
+    const { startDate, numberOfWeeks, weeklySchedule } = config;
+    let createdCount = 0;
+
+    // Generate sessions for each week
+    for (let week = 0; week < numberOfWeeks; week++) {
+      for (const slot of weeklySchedule) {
+        // Calculate the date for this slot
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + (week * 7) + slot.dayOfWeek);
+
+        // Only schedule cloud sessions (local sessions can't be scheduled in DB)
+        if (!slot.isLocal) {
+          const result = await scheduleSession(
+            slot.sessionId,
+            date,
+            `Semaine ${week + 1} - ${config.name}`
+          );
+          if (result) createdCount++;
+        }
+      }
+    }
+
+    toast({
+      title: 'Cycle créé',
+      description: `${createdCount} séances planifiées sur ${numberOfWeeks} semaines`,
+    });
+  }, [user, scheduleSession]);
+
   const editingEmomPreset = editingId && timerType === 'emom' ? getEmomPreset(editingId) : undefined;
   const editingRestPreset = editingId && timerType === 'rest' ? getRestPreset(editingId) : undefined;
 
@@ -531,6 +568,7 @@ const Index = () => {
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
+                    className="space-y-4"
                   >
                     {!user ? (
                       <div className="text-center py-12">
@@ -546,19 +584,33 @@ const Index = () => {
                         </Button>
                       </div>
                     ) : (
-                      <SessionCalendar
-                        scheduledSessions={scheduledSessions}
-                        savedSessions={savedSessions}
-                        selectedDate={selectedDate}
-                        onSelectDate={setSelectedDate}
-                        onScheduleSession={(date) => {
-                          setScheduleDialogDate(date);
-                          setScheduleDialogOpen(true);
-                        }}
-                        onStartSession={handleStartScheduledSession}
-                        onDeleteScheduledSession={handleDeleteScheduledSession}
-                        onMarkComplete={handleMarkScheduledComplete}
-                      />
+                      <>
+                        {/* Cycle creation button */}
+                        <div className="flex justify-end">
+                          <Button
+                            variant="outline"
+                            onClick={() => setCycleDialogOpen(true)}
+                            className="gap-2"
+                          >
+                            <Repeat className="w-4 h-4" />
+                            Créer un cycle
+                          </Button>
+                        </div>
+                        
+                        <SessionCalendar
+                          scheduledSessions={scheduledSessions}
+                          savedSessions={savedSessions}
+                          selectedDate={selectedDate}
+                          onSelectDate={setSelectedDate}
+                          onScheduleSession={(date) => {
+                            setScheduleDialogDate(date);
+                            setScheduleDialogOpen(true);
+                          }}
+                          onStartSession={handleStartScheduledSession}
+                          onDeleteScheduledSession={handleDeleteScheduledSession}
+                          onMarkComplete={handleMarkScheduledComplete}
+                        />
+                      </>
                     )}
                   </motion.div>
                 )}
@@ -772,6 +824,16 @@ const Index = () => {
             setScheduleDialogOpen(false);
             setScheduleDialogDate(null);
           }}
+        />
+      )}
+
+      {/* Cycle creation dialog */}
+      {cycleDialogOpen && (
+        <CreateCycleDialog
+          savedSessions={savedSessions}
+          localSessions={jsonSessions}
+          onCreateCycle={handleCreateCycle}
+          onClose={() => setCycleDialogOpen(false)}
         />
       )}
 
