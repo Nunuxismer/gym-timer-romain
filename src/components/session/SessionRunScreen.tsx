@@ -32,6 +32,7 @@ import { wakeLockManager } from '@/lib/wakeLock';
 import { SetPerformanceEditor } from './SetPerformanceEditor';
 import { SessionCompleteScreen } from './SessionCompleteScreen';
 import { TargetWeightEditor } from './TargetWeightEditor';
+import { PreviousPerformance } from './PreviousPerformance';
 import { toast } from '@/hooks/use-toast';
 
 interface SessionRunScreenProps {
@@ -353,14 +354,14 @@ export function SessionRunScreen({
             <h3 className="text-sm font-semibold text-muted-foreground mb-3">
               {currentBlock.exercises.length} exercice{currentBlock.exercises.length > 1 ? 's' : ''}
             </h3>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {currentBlock.exercises.map((ex, idx) => {
                 const perf = getExercisePerformance(ex.exercise_id);
                 const targetWeight = perf?.sets[0]?.targetWeight;
                 
                 return (
                   <Card key={ex.exercise_id} className="bg-secondary/50">
-                    <CardContent className="p-3">
+                    <CardContent className="p-3 space-y-2">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
                           <span className="text-sm font-bold text-primary">{idx + 1}</span>
@@ -390,6 +391,11 @@ export function SessionRunScreen({
                           />
                         )}
                       </div>
+                      
+                      {/* Previous performance for this exercise */}
+                      {(currentBlock.block_type === 'standard' || currentBlock.block_type === 'circuit') && (
+                        <PreviousPerformance exercise={ex} />
+                      )}
                     </CardContent>
                   </Card>
                 );
@@ -604,6 +610,9 @@ export function SessionRunScreen({
                   <span className="bg-secondary/50 px-2 py-0.5 rounded">Hold: {formatRange(currentExercise.isometric_hold_sec, 's')}</span>
                 )}
               </div>
+
+              {/* Previous performance - compact view during work */}
+              <PreviousPerformance exercise={currentExercise} compact />
 
               {/* Coaching cues */}
               {currentExercise.coaching_cues && currentExercise.coaching_cues.length > 0 && (
