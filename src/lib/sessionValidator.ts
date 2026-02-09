@@ -198,19 +198,133 @@ function validateSessionMetadata(session: unknown, errors: ValidationError[]): s
   return valid;
 }
 
-export function validateSessionJson(input: string): ValidationResult {
+// Validate a single session object (with session + blocks)
+function validateSingleSession(obj: Record<string, unknown>, errors: ValidationError[], prefix: string = ''): boolean {
+  let valid = true;
+  const p = prefix ? `${prefix}.` : '';
+
+  if (!obj.session) {
+    errors.push({ path: `${p}session`, message: `Le champ 'session' est manquant` });
+    valid = false;
+  } else {
+    if (!validateSessionMetadata(obj.session, errors)) valid = false;
+  }
+
+  if (!obj.blocks) {
+    errors.push({ path: `${p}blocks`, message: `Le champ 'blocks' est manquant` });
+    valid = false;
+  } else if (!Array.isArray(obj.blocks)) {
+    errors.push({ path: `${p}blocks`, message: `Le champ 'blocks' doit être un tableau` });
+    valid = false;
+  } else if (obj.blocks.length === 0) {
+    errors.push({ path: `${p}blocks`, message: `La séance doit contenir au moins un bloc` });
+    valid = false;
+  } else {
+    obj.blocks.forEach((block, idx) => {
+      validateBlock(block, `${p}blocks[${idx}]`, errors);
+    });
+  }
+
+  return valid;
+}
+
+export interface CycleValidationResult {
+  valid: boolean;
+  errors: ValidationError[];
+  sessions: JsonSession[];
+  cycle: {
+    cycle_name: string;
+    start_date: string;
+    number_of_weeks: number;
+    weekly_schedule: Array<{
+      day_of_week: number;
+      session_id: string;
+      session_name: string;
+    }>;
+  } | null;
+}
+
+// Detect if the JSON is a combined format { sessions[], cycle }
+export function isCombinedFormat(input: string): boolean {
+  try {
+    const parsed = JSON.parse(input);
+    return typeof parsed === 'object' && parsed !== null && Array.isArray(parsed.sessions);
+  } catch {
+    return false;
+  }
+}
+
+export function validateCombinedJson(input: string): CycleValidationResult {
   const errors: ValidationError[] = [];
 
-  // Try to parse JSON
   let parsed: unknown;
   try {
     parsed = JSON.parse(input);
   } catch (e) {
     const errorMessage = e instanceof Error ? e.message : 'Erreur de syntaxe';
-    errors.push({ 
-      path: '', 
-      message: `JSON invalide : ${errorMessage}` 
-    });
+    errors.push({ path: '', message: `JSON invalide : ${errorMessage}` });
+    return { valid: false, errors, sessions: [], cycle: null };
+  }
+
+  const obj = parsed as Record<string, unknown>;
+
+  if (!Array.isArray(obj.sessions) || obj.sessions.length === 0) {
+    errors.push({ path: 'sessions', message: `Le champ 'sessions' doit être un tableau non vide` });
+    return { valid: false, errors, sessions: [], cycle: null };
+  }
+
+  // Validate each session
+  obj.sessions.forEach((s: unknown, idx: number) => {
+    if (typeof s !== 'object' || s === null) {
+      errors.push({ path: `sessions[${idx}]`, message: `La séance doit être un objet` });
+    } else {
+      validateSingleSession(s as Record<string, unknown>, errors, `sessions[${idx}]`);
+    }
+  });
+
+  // Validate cycle if present
+  let cycle = null;
+  if (obj.cycle) {
+    const c = obj.cycle as Record<string, unknown>;
+    if (typeof c.cycle_name !== 'string') {
+      errors.push({ path: 'cycle.cycle_name', message: `Le champ 'cycle_name' est obligatoire` });
+    }
+    if (typeof c.start_date !== 'string') {
+      errors.push({ path: 'cycle.start_date', message: `Le champ 'start_date' est obligatoire (format YYYY-MM-DD)` });
+    }
+    if (typeof c.number_of_weeks !== 'number') {
+      errors.push({ path: 'cycle.number_of_weeks', message: `Le champ 'number_of_weeks' doit être un nombre` });
+    }
+    if (!Array.isArray(c.weekly_schedule)) {
+      errors.push({ path: 'cycle.weekly_schedule', message: `Le champ 'weekly_schedule' doit être un tableau` });
+    }
+
+    if (errors.length === 0) {
+      cycle = c as CycleValidationResult['cycle'];
+    }
+  }
+
+  if (errors.length > 0) {
+    return { valid: false, errors, sessions: [], cycle: null };
+  }
+
+  return {
+    valid: true,
+    errors: [],
+    sessions: obj.sessions as JsonSession[],
+    cycle,
+  };
+}
+
+export function validateSessionJson(input: string): ValidationResult {
+  const errors: ValidationError[] = [];
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(input);
+  } catch (e) {
+    const errorMessage = e instanceof Error ? e.message : 'Erreur de syntaxe';
+    errors.push({ path: '', message: `JSON invalide : ${errorMessage}` });
     return { valid: false, errors, session: null };
   }
 
@@ -221,33 +335,11 @@ export function validateSessionJson(input: string): ValidationResult {
 
   const obj = parsed as Record<string, unknown>;
 
-  // Validate session metadata
-  if (!obj.session) {
-    errors.push({ path: 'session', message: `Le champ 'session' est manquant` });
-  } else {
-    validateSessionMetadata(obj.session, errors);
-  }
-
-  // Validate blocks
-  if (!obj.blocks) {
-    errors.push({ path: 'blocks', message: `Le champ 'blocks' est manquant` });
-  } else if (!Array.isArray(obj.blocks)) {
-    errors.push({ path: 'blocks', message: `Le champ 'blocks' doit être un tableau` });
-  } else if (obj.blocks.length === 0) {
-    errors.push({ path: 'blocks', message: `La séance doit contenir au moins un bloc` });
-  } else {
-    obj.blocks.forEach((block, idx) => {
-      validateBlock(block, `blocks[${idx}]`, errors);
-    });
-  }
+  validateSingleSession(obj, errors);
 
   if (errors.length > 0) {
     return { valid: false, errors, session: null };
   }
 
-  return { 
-    valid: true, 
-    errors: [], 
-    session: parsed as JsonSession 
-  };
+  return { valid: true, errors: [], session: parsed as JsonSession };
 }
