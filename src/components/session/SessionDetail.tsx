@@ -103,6 +103,12 @@ function ExerciseDetail({ exercise, index }: { exercise: Exercise; index: number
                 <span className="text-muted-foreground">Repos:</span> {restAfterSet}
               </span>
             )}
+            {exercise.target_weight != null && (
+              <span className="text-foreground font-medium">
+                <span className="text-muted-foreground">Poids cible:</span>{' '}
+                <span className="text-primary">{exercise.target_weight} kg</span>
+              </span>
+            )}
           </div>
 
           {/* Equipment */}
