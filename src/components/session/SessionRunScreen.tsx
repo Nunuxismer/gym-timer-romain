@@ -586,14 +586,15 @@ export function SessionRunScreen({
                     <p className="text-lg font-bold text-primary">{formatRange(currentExercise.rir)}</p>
                   </div>
                 )}
-                {/* Show target weight if set */}
+                {/* Show target weight: from performance tracking or from JSON definition */}
                 {(() => {
                   const perf = getSetPerformance(currentExercise.exercise_id, state.currentSet - 1);
-                  if (perf?.targetWeight) {
+                  const weight = perf?.targetWeight || currentExercise.target_weight;
+                  if (weight) {
                     return (
                       <div className="bg-accent/20 rounded-xl px-4 py-2 border-2 border-accent/30">
-                        <p className="text-xs text-accent-foreground font-medium">Poids</p>
-                        <p className="text-lg font-bold text-accent-foreground">{perf.targetWeight}kg</p>
+                        <p className="text-xs text-accent-foreground font-medium">Poids cible</p>
+                        <p className="text-lg font-bold text-accent-foreground">{weight} kg</p>
                       </div>
                     );
                   }
@@ -710,6 +711,7 @@ export function SessionRunScreen({
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {nextBlock.block_name}
+                            {firstExerciseOfNextBlock.target_weight != null && ` • ${firstExerciseOfNextBlock.target_weight} kg`}
                           </p>
                         </div>
                       </div>
@@ -734,6 +736,7 @@ export function SessionRunScreen({
                         {formatRange(nextExercise.sets)} série{(getNumericValue(nextExercise.sets) || 1) > 1 ? 's' : ''}
                         {nextExercise.reps && ` • ${formatRange(nextExercise.reps)} reps`}
                         {nextExercise.rir !== null && nextExercise.rir !== undefined && ` • RIR ${formatRange(nextExercise.rir)}`}
+                        {nextExercise.target_weight != null && ` • ${nextExercise.target_weight} kg`}
                       </p>
                     </div>
                   </div>
