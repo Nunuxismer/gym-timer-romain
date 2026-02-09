@@ -118,6 +118,10 @@ export function useJsonSessions() {
     };
   }, [addSession]);
 
+  const importMultipleSessions = useCallback((sessions: JsonSession[]): StoredSession[] => {
+    return sessions.map(s => addSession(s));
+  }, [addSession]);
+
   return {
     sessions,
     isLoaded,
@@ -127,5 +131,6 @@ export function useJsonSessions() {
     getSession,
     markSessionRun,
     importFromJson,
+    importMultipleSessions,
   };
 }

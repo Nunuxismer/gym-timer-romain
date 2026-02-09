@@ -50,6 +50,7 @@ const Index = () => {
   const { 
     sessions: jsonSessions, 
     importFromJson, 
+    importMultipleSessions,
     deleteSession: deleteJsonSession, 
     getSession: getJsonSession,
     updateSession: updateJsonSession,
@@ -372,6 +373,54 @@ const Index = () => {
       description: `${createdCount} séances planifiées sur ${numberOfWeeks} semaines`,
     });
   }, [user, scheduleSession]);
+
+  // Handle combined import (sessions + cycle)
+  const handleImportCombined = useCallback(async (sessions: JsonSession[], cycle: any) => {
+    // Import all sessions locally
+    const storedSessions = importMultipleSessions(sessions);
+    
+    // If user is logged in and cycle exists, save sessions to cloud and create cycle
+    if (user && cycle) {
+      let savedIds: Record<string, string> = {};
+      
+      // Save each session to cloud
+      for (const stored of storedSessions) {
+        const result = await addSavedSession(stored);
+        if (result) {
+          savedIds[stored.session.session_id] = result.id;
+        }
+      }
+
+      // Create cycle using saved session IDs
+      const weeklySchedule = cycle.weekly_schedule
+        .map((slot: any) => {
+          const cloudId = savedIds[slot.session_id];
+          if (!cloudId) return null;
+          return {
+            dayOfWeek: slot.day_of_week,
+            sessionId: cloudId,
+            sessionName: slot.session_name,
+            isLocal: false,
+          };
+        })
+        .filter(Boolean);
+
+      if (weeklySchedule.length > 0) {
+        await handleCreateCycle({
+          name: cycle.cycle_name,
+          startDate: new Date(cycle.start_date),
+          numberOfWeeks: cycle.number_of_weeks,
+          weeklySchedule,
+        });
+      }
+    }
+    
+    toast({ 
+      title: 'Import terminé', 
+      description: `${storedSessions.length} séance(s) importée(s)${cycle ? ' + cycle créé' : ''}` 
+    });
+    setView('home');
+  }, [importMultipleSessions, user, addSavedSession, handleCreateCycle]);
 
   const editingEmomPreset = editingId && timerType === 'emom' ? getEmomPreset(editingId) : undefined;
   const editingRestPreset = editingId && timerType === 'rest' ? getRestPreset(editingId) : undefined;
@@ -742,6 +791,7 @@ const Index = () => {
             onImport={importFromJson}
             onSuccess={handleJsonImportSuccess}
             onBack={() => setView('home')}
+            onImportCombined={handleImportCombined}
           />
         )}
 

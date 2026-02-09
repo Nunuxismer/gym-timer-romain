@@ -2,25 +2,51 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, CheckCircle2, Upload, X, ArrowLeft } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Upload, ArrowLeft, Layers, FileJson } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { validateSessionJson, ValidationError } from '@/lib/sessionValidator';
+import { isCombinedFormat, validateCombinedJson, validateSessionJson } from '@/lib/sessionValidator';
 import type { JsonSession, StoredSession } from '@/types/jsonSession';
+import type { CycleValidationResult } from '@/lib/sessionValidator';
 
 interface SessionJsonInputProps {
   onImport: (jsonString: string) => { success: boolean; errors: string[]; session?: StoredSession };
   onSuccess: (session: StoredSession) => void;
   onBack: () => void;
+  onImportCombined?: (sessions: JsonSession[], cycle: CycleValidationResult['cycle']) => void;
 }
 
-export function SessionJsonInput({ onImport, onSuccess, onBack }: SessionJsonInputProps) {
+export function SessionJsonInput({ onImport, onSuccess, onBack, onImportCombined }: SessionJsonInputProps) {
   const [jsonInput, setJsonInput] = useState('');
   const [errors, setErrors] = useState<string[]>([]);
   const [isValid, setIsValid] = useState<boolean | null>(null);
+  const [combinedSummary, setCombinedSummary] = useState<{ sessionCount: number; cycleName: string | null } | null>(null);
 
   const handleValidate = () => {
-    const result = onImport(jsonInput);
-    
+    const trimmed = jsonInput.trim();
+    if (!trimmed) return;
+
+    // Detect combined format
+    if (isCombinedFormat(trimmed)) {
+      const result = validateCombinedJson(trimmed);
+      if (result.valid && result.sessions.length > 0) {
+        setIsValid(true);
+        setErrors([]);
+        setCombinedSummary({
+          sessionCount: result.sessions.length,
+          cycleName: result.cycle?.cycle_name || null,
+        });
+        onImportCombined?.(result.sessions, result.cycle);
+      } else {
+        setIsValid(false);
+        setErrors(result.errors.map(e => e.path ? `${e.path}: ${e.message}` : e.message));
+        setCombinedSummary(null);
+      }
+      return;
+    }
+
+    // Single session format
+    setCombinedSummary(null);
+    const result = onImport(trimmed);
     if (result.success && result.session) {
       setIsValid(true);
       setErrors([]);
@@ -34,7 +60,7 @@ export function SessionJsonInput({ onImport, onSuccess, onBack }: SessionJsonInp
   const handleFileUpload = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.json';
+    input.accept = '.json,.md,.txt';
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
@@ -44,6 +70,7 @@ export function SessionJsonInput({ onImport, onSuccess, onBack }: SessionJsonInp
           setJsonInput(text);
           setErrors([]);
           setIsValid(null);
+          setCombinedSummary(null);
         };
         reader.readAsText(file);
       }
@@ -55,6 +82,7 @@ export function SessionJsonInput({ onImport, onSuccess, onBack }: SessionJsonInp
     setJsonInput('');
     setErrors([]);
     setIsValid(null);
+    setCombinedSummary(null);
   };
 
   return (
@@ -71,7 +99,7 @@ export function SessionJsonInput({ onImport, onSuccess, onBack }: SessionJsonInp
         </Button>
         <div>
           <h1 className="text-xl font-bold text-foreground">Importer une séance</h1>
-          <p className="text-sm text-muted-foreground">Colle ici le JSON de ta séance</p>
+          <p className="text-sm text-muted-foreground">Séance unique ou cycle complet (séances + planning)</p>
         </div>
       </header>
 
@@ -100,8 +128,9 @@ export function SessionJsonInput({ onImport, onSuccess, onBack }: SessionJsonInp
               setJsonInput(e.target.value);
               setErrors([]);
               setIsValid(null);
+              setCombinedSummary(null);
             }}
-            placeholder='{"session": {...}, "blocks": [...]}'
+            placeholder='{"session": {...}, "blocks": [...]}  ou  {"sessions": [...], "cycle": {...}}'
             className="min-h-[300px] font-mono text-sm"
           />
         </CardContent>
@@ -109,7 +138,35 @@ export function SessionJsonInput({ onImport, onSuccess, onBack }: SessionJsonInp
 
       {/* Validation Result */}
       <AnimatePresence>
-        {isValid === true && (
+        {isValid === true && combinedSummary && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-4"
+          >
+            <Card className="border-timer-complete bg-timer-complete/10">
+              <CardContent className="py-4 space-y-2">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-timer-complete flex-shrink-0" />
+                  <span className="text-sm font-medium text-foreground">Import combiné réussi !</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground ml-8">
+                  <Layers className="w-4 h-4" />
+                  <span>{combinedSummary.sessionCount} séance(s) importée(s)</span>
+                </div>
+                {combinedSummary.cycleName && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground ml-8">
+                    <FileJson className="w-4 h-4" />
+                    <span>Cycle « {combinedSummary.cycleName} » créé</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {isValid === true && !combinedSummary && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
