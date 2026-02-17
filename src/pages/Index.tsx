@@ -61,7 +61,7 @@ const Index = () => {
   const { user } = useAuth();
 
   // Cloud data hooks
-  const { sessions: savedSessions, addSession: addSavedSession, getSession: getSavedSession } = useSavedSessions();
+  const { sessions: savedSessions, addSession: addSavedSession, getSession: getSavedSession, updateSession: updateSavedSession, deleteSession: deleteSavedSession } = useSavedSessions();
   const { scheduledSessions, scheduleSession, updateScheduledSession, deleteScheduledSession } = useScheduledSessions();
   const { history, deleteHistoryEntry, getExerciseLogs } = useSessionHistory();
 
@@ -192,6 +192,17 @@ const Index = () => {
     setView('edit');
   }, []);
 
+  // Convert SavedSession to StoredSession format for UI components
+  const savedSessionsAsStored: StoredSession[] = savedSessions.map(s => ({
+    ...s.session_data,
+    storedAt: s.created_at,
+    lastRunAt: null,
+    _cloudId: s.id, // Track cloud ID for updates/deletes
+  } as StoredSession & { _cloudId: string }));
+
+  // When logged in, use cloud sessions; otherwise use local
+  const displayedSessions = user ? savedSessionsAsStored : jsonSessions;
+
   // JSON Session handlers
   const handleJsonImportSuccess = useCallback((session: StoredSession) => {
     toast({ title: 'Séance importée avec succès' });
@@ -199,42 +210,89 @@ const Index = () => {
   }, []);
 
   const handleViewJsonSession = useCallback((sessionId: string) => {
+    if (user) {
+      // Find by session_id in cloud sessions
+      const saved = savedSessions.find(s => s.session_data.session.session_id === sessionId);
+      if (saved) {
+        const stored: StoredSession = { ...saved.session_data, storedAt: saved.created_at, lastRunAt: null };
+        setSelectedJsonSession(stored);
+        setEditingId(saved.id); // Store cloud ID for editing
+        setView('json-detail');
+        return;
+      }
+    }
     const session = getJsonSession(sessionId);
     if (session) {
       setSelectedJsonSession(session);
+      setEditingId(null);
       setView('json-detail');
     }
-  }, [getJsonSession]);
+  }, [user, savedSessions, getJsonSession]);
 
   const handleStartJsonSession = useCallback((sessionId: string) => {
+    if (user) {
+      const saved = savedSessions.find(s => s.session_data.session.session_id === sessionId);
+      if (saved) {
+        const stored: StoredSession = { ...saved.session_data, storedAt: saved.created_at, lastRunAt: null };
+        setSelectedJsonSession(stored);
+        setView('json-run');
+        return;
+      }
+    }
     const session = getJsonSession(sessionId);
     if (session) {
       setSelectedJsonSession(session);
       markSessionRun(sessionId);
       setView('json-run');
     }
-  }, [getJsonSession, markSessionRun]);
+  }, [user, savedSessions, getJsonSession, markSessionRun]);
 
   const handleDeleteJsonSession = useCallback((sessionId: string) => {
+    if (user) {
+      const saved = savedSessions.find(s => s.session_data.session.session_id === sessionId);
+      if (saved) {
+        setDeleteConfirmId(saved.id); // Use cloud ID
+        return;
+      }
+    }
     setDeleteConfirmId(sessionId);
-  }, []);
+  }, [user, savedSessions]);
 
   const handleEditJsonSession = useCallback((sessionId: string) => {
+    if (user) {
+      const saved = savedSessions.find(s => s.session_data.session.session_id === sessionId);
+      if (saved) {
+        const stored: StoredSession = { ...saved.session_data, storedAt: saved.created_at, lastRunAt: null };
+        setSelectedJsonSession(stored);
+        setEditingId(saved.id); // Store cloud ID
+        setView('json-edit');
+        return;
+      }
+    }
     const session = getJsonSession(sessionId);
     if (session) {
       setSelectedJsonSession(session);
+      setEditingId(null);
       setView('json-edit');
     }
-  }, [getJsonSession]);
+  }, [user, savedSessions, getJsonSession]);
 
-  const handleSaveJsonSession = useCallback((jsonSession: JsonSession) => {
+  const handleSaveJsonSession = useCallback(async (jsonSession: JsonSession) => {
     if (selectedJsonSession) {
-      updateJsonSession(selectedJsonSession.session.session_id, jsonSession);
-      toast({ title: 'Séance modifiée' });
+      if (user && editingId) {
+        // Update cloud session
+        await updateSavedSession(editingId, jsonSession);
+        toast({ title: 'Séance modifiée' });
+      } else {
+        // Update local session
+        updateJsonSession(selectedJsonSession.session.session_id, jsonSession);
+        toast({ title: 'Séance modifiée' });
+      }
       setSelectedJsonSession(null);
+      setEditingId(null);
       setView('home');
     }
-  }, [selectedJsonSession, updateJsonSession]);
+  }, [selectedJsonSession, user, editingId, updateSavedSession, updateJsonSession]);
 
   // Save local session to cloud
   const handleSaveToCloud = useCallback(async (sessionId: string) => {
@@ -257,7 +315,7 @@ const Index = () => {
   }, [user, getJsonSession, addSavedSession]);
 
   // Common handlers
-  const handleDeleteConfirm = useCallback(() => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (deleteConfirmId) {
       if (timerType === 'emom') {
         deleteEmomPreset(deleteConfirmId);
@@ -266,12 +324,20 @@ const Index = () => {
         deleteRestPreset(deleteConfirmId);
         toast({ title: 'Timer supprimé' });
       } else if (timerType === 'json') {
-        deleteJsonSession(deleteConfirmId);
-        toast({ title: 'Séance supprimée' });
+        if (user) {
+          // Try cloud delete first (deleteConfirmId is cloud UUID)
+          const success = await deleteSavedSession(deleteConfirmId);
+          if (success) {
+            toast({ title: 'Séance supprimée' });
+          }
+        } else {
+          deleteJsonSession(deleteConfirmId);
+          toast({ title: 'Séance supprimée' });
+        }
       }
       setDeleteConfirmId(null);
     }
-  }, [deleteConfirmId, timerType, deleteEmomPreset, deleteRestPreset, deleteJsonSession]);
+  }, [deleteConfirmId, timerType, deleteEmomPreset, deleteRestPreset, deleteJsonSession, user, deleteSavedSession]);
 
   const handleImport = useCallback(() => {
     const input = document.createElement('input');
@@ -599,13 +665,13 @@ const Index = () => {
                     exit={{ opacity: 0, x: -20 }}
                   >
                     <SessionList
-                      sessions={jsonSessions}
+                      sessions={displayedSessions}
                       onView={handleViewJsonSession}
                       onStart={handleStartJsonSession}
                       onEdit={handleEditJsonSession}
                       onDelete={handleDeleteJsonSession}
                       onImport={() => setView('json-import')}
-                      onSaveToCloud={handleSaveToCloud}
+                      onSaveToCloud={!user ? handleSaveToCloud : undefined}
                       isLoggedIn={!!user}
                     />
                   </motion.div>
@@ -804,7 +870,7 @@ const Index = () => {
               setView('home');
             }}
             onStart={() => {
-              markSessionRun(selectedJsonSession.session.session_id);
+              if (!user) markSessionRun(selectedJsonSession.session.session_id);
               setView('json-run');
             }}
           />
