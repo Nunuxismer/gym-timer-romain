@@ -81,7 +81,7 @@ export function usePerformanceTracking(): UsePerformanceTrackingReturn {
       
       for (let i = 0; i < totalSets; i++) {
         sets.push({
-          targetWeight: undefined,
+          targetWeight: exercise.target_weight ?? undefined,
           actualWeight: undefined,
           targetReps: undefined,
           actualReps: undefined,
