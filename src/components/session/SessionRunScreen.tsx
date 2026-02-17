@@ -600,6 +600,20 @@ export function SessionRunScreen({
                   }
                   return null;
                 })()}
+                {/* Rest time */}
+                {(() => {
+                  const restSec = getNumericValue(currentExercise.rest_after_set_sec) 
+                    || getNumericValue(currentBlock?.rest_between_exercises_sec);
+                  if (restSec) {
+                    return (
+                      <div className="bg-secondary rounded-xl px-4 py-2">
+                        <p className="text-xs text-muted-foreground">Repos</p>
+                        <p className="text-lg font-bold text-foreground">{restSec}s</p>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
 
               {/* Secondary info */}
