@@ -414,6 +414,20 @@ const Index = () => {
     }
   }, [getSavedSession]);
 
+  // Edit a session from the planning tab (savedSessionId is the cloud UUID)
+  const handleEditFromPlanning = useCallback((savedSessionId: string) => {
+    const savedSession = getSavedSession(savedSessionId);
+    if (savedSession) {
+      const stored: StoredSession = { ...savedSession.session_data, storedAt: savedSession.created_at, lastRunAt: null };
+      setSelectedJsonSession(stored);
+      setEditingId(savedSessionId);
+      setTimerType('json'); // switch to sessions tab context for editing
+      setView('json-edit');
+    } else {
+      toast({ title: 'Erreur', description: 'Séance introuvable', variant: 'destructive' });
+    }
+  }, [getSavedSession]);
+
   // Mark a scheduled session as complete
   const handleMarkScheduledComplete = useCallback(async (scheduledSessionId: string) => {
     const result = await updateScheduledSession(scheduledSessionId, { completed: true });
@@ -746,6 +760,7 @@ const Index = () => {
                             setScheduleDialogOpen(true);
                           }}
                           onStartSession={handleStartScheduledSession}
+                          onEditSession={handleEditFromPlanning}
                           onDeleteScheduledSession={handleDeleteScheduledSession}
                           onMarkComplete={handleMarkScheduledComplete}
                         />
