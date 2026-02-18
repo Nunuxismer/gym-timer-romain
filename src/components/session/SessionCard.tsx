@@ -1,9 +1,17 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Play, Eye, MoreVertical, Trash2, Clock, Target, Activity, Pencil, Cloud } from 'lucide-react';
+import { Play, Eye, MoreVertical, Trash2, Clock, Target, Activity, Pencil, Cloud, CalendarDays } from 'lucide-react';
+import { format, parseISO, isPast, isToday } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import type { StoredSession } from '@/types/jsonSession';
 import { SESSION_TYPE_FR, DOMINANT_FOCUS_FR } from '@/types/jsonSession';
+
+interface ScheduledDateInfo {
+  id: string;
+  date: string; // yyyy-MM-dd
+  completed: boolean;
+}
 
 interface SessionCardProps {
   session: StoredSession;
@@ -13,11 +21,20 @@ interface SessionCardProps {
   onDelete: () => void;
   onSaveToCloud?: () => void;
   isLoggedIn?: boolean;
+  scheduledDates?: ScheduledDateInfo[];
 }
 
-export function SessionCard({ session, onStart, onView, onEdit, onDelete, onSaveToCloud, isLoggedIn }: SessionCardProps) {
+export function SessionCard({ session, onStart, onView, onEdit, onDelete, onSaveToCloud, isLoggedIn, scheduledDates }: SessionCardProps) {
   const { session: meta, blocks } = session;
   const totalExercises = blocks.reduce((sum, b) => sum + b.exercises.length, 0);
+
+  // Sort scheduled dates: upcoming first, then past
+  const sortedDates = scheduledDates
+    ? [...scheduledDates].sort((a, b) => a.date.localeCompare(b.date))
+    : [];
+  const upcomingDates = sortedDates.filter(d => !d.completed && (isToday(parseISO(d.date)) || !isPast(parseISO(d.date))));
+  const pastDates = sortedDates.filter(d => d.completed || isPast(parseISO(d.date)) && !isToday(parseISO(d.date)));
+  const displayDates = [...upcomingDates, ...pastDates].slice(0, 3);
 
   return (
     <Card className="overflow-hidden">
@@ -78,6 +95,45 @@ export function SessionCard({ session, onStart, onView, onEdit, onDelete, onSave
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+
+        {/* Scheduled dates */}
+        {scheduledDates !== undefined && (
+          <div className="mt-3 pt-3 border-t border-border">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
+              <CalendarDays className="w-3.5 h-3.5" />
+              <span>Planifiée le</span>
+            </div>
+            {displayDates.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">Non planifiée</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {displayDates.map(d => {
+                  const date = parseISO(d.date);
+                  const upcoming = !d.completed && (isToday(date) || !isPast(date));
+                  return (
+                    <span
+                      key={d.id}
+                      className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium ${
+                        d.completed
+                          ? 'bg-secondary text-muted-foreground line-through'
+                          : upcoming
+                          ? 'bg-primary/15 text-primary'
+                          : 'bg-secondary text-muted-foreground'
+                      }`}
+                    >
+                      {format(date, 'd MMM', { locale: fr })}
+                    </span>
+                  );
+                })}
+                {sortedDates.length > 3 && (
+                  <span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                    +{sortedDates.length - 3}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Quick actions */}
         <div className="flex gap-2 mt-4">

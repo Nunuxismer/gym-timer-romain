@@ -203,6 +203,28 @@ const Index = () => {
   // When logged in, use cloud sessions; otherwise use local
   const displayedSessions = user ? savedSessionsAsStored : jsonSessions;
 
+  // Build map: cloud saved_session_id → scheduled dates (for SessionCard display)
+  const scheduledDatesBySessionId = user
+    ? scheduledSessions.reduce<Record<string, { id: string; date: string; completed: boolean }[]>>(
+        (acc, s) => {
+          if (s.saved_session_id) {
+            if (!acc[s.saved_session_id]) acc[s.saved_session_id] = [];
+            acc[s.saved_session_id].push({ id: s.id, date: s.scheduled_date, completed: s.completed });
+          }
+          return acc;
+        },
+        {}
+      )
+    : undefined;
+
+  // Helper: get cloud UUID for a session's local session_id
+  const getCloudId = user
+    ? (localSessionId: string): string | undefined => {
+        const saved = savedSessions.find(s => s.session_data.session.session_id === localSessionId);
+        return saved?.id;
+      }
+    : undefined;
+
   // JSON Session handlers
   const handleJsonImportSuccess = useCallback((session: StoredSession) => {
     toast({ title: 'Séance importée avec succès' });
@@ -673,6 +695,8 @@ const Index = () => {
                       onImport={() => setView('json-import')}
                       onSaveToCloud={!user ? handleSaveToCloud : undefined}
                       isLoggedIn={!!user}
+                      scheduledDatesBySessionId={scheduledDatesBySessionId}
+                      getCloudId={getCloudId}
                     />
                   </motion.div>
                 )}

@@ -4,6 +4,12 @@ import { motion } from 'framer-motion';
 import type { StoredSession } from '@/types/jsonSession';
 import { SessionCard } from './SessionCard';
 
+interface ScheduledDateInfo {
+  id: string;
+  date: string;
+  completed: boolean;
+}
+
 interface SessionListProps {
   sessions: StoredSession[];
   onImport: () => void;
@@ -13,9 +19,13 @@ interface SessionListProps {
   onDelete: (sessionId: string) => void;
   onSaveToCloud?: (sessionId: string) => void;
   isLoggedIn?: boolean;
+  // Map from cloud session ID (saved_sessions.id) to its scheduled dates
+  scheduledDatesBySessionId?: Record<string, ScheduledDateInfo[]>;
+  // Function to get the cloud ID for a session (when logged in)
+  getCloudId?: (sessionId: string) => string | undefined;
 }
 
-export function SessionList({ sessions, onImport, onStart, onView, onEdit, onDelete, onSaveToCloud, isLoggedIn }: SessionListProps) {
+export function SessionList({ sessions, onImport, onStart, onView, onEdit, onDelete, onSaveToCloud, isLoggedIn, scheduledDatesBySessionId, getCloudId }: SessionListProps) {
   if (sessions.length === 0) {
     return (
       <div className="text-center py-16">
@@ -53,18 +63,27 @@ export function SessionList({ sessions, onImport, onStart, onView, onEdit, onDel
       </div>
 
       <div className="space-y-3">
-        {sessions.map((session) => (
-          <SessionCard
-            key={session.session.session_id}
-            session={session}
-            onStart={() => onStart(session.session.session_id)}
-            onView={() => onView(session.session.session_id)}
-            onEdit={() => onEdit(session.session.session_id)}
-            onDelete={() => onDelete(session.session.session_id)}
-            onSaveToCloud={onSaveToCloud ? () => onSaveToCloud(session.session.session_id) : undefined}
-            isLoggedIn={isLoggedIn}
-          />
-        ))}
+        {sessions.map((session) => {
+          const localId = session.session.session_id;
+          const cloudId = getCloudId ? getCloudId(localId) : undefined;
+          const scheduledDates = scheduledDatesBySessionId
+            ? (cloudId ? scheduledDatesBySessionId[cloudId] : undefined)
+            : undefined;
+
+          return (
+            <SessionCard
+              key={localId}
+              session={session}
+              onStart={() => onStart(localId)}
+              onView={() => onView(localId)}
+              onEdit={() => onEdit(localId)}
+              onDelete={() => onDelete(localId)}
+              onSaveToCloud={onSaveToCloud ? () => onSaveToCloud(localId) : undefined}
+              isLoggedIn={isLoggedIn}
+              scheduledDates={scheduledDates}
+            />
+          );
+        })}
       </div>
     </motion.div>
   );
