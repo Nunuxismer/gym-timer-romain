@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, addMonths, subMonths } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Plus, Play, Trash2, CheckCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Play, Trash2, CheckCircle, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ScheduledSession } from '@/hooks/useScheduledSessions';
@@ -13,6 +13,7 @@ interface SessionCalendarProps {
   onSelectDate: (date: Date) => void;
   onScheduleSession: (date: Date) => void;
   onStartSession?: (savedSessionId: string, scheduledSessionId: string) => void;
+  onEditSession?: (savedSessionId: string) => void;
   onDeleteScheduledSession?: (scheduledSessionId: string) => void;
   onMarkComplete?: (scheduledSessionId: string) => void;
   selectedDate?: Date;
@@ -24,6 +25,7 @@ export function SessionCalendar({
   onSelectDate,
   onScheduleSession,
   onStartSession,
+  onEditSession,
   onDeleteScheduledSession,
   onMarkComplete,
   selectedDate,
@@ -184,6 +186,20 @@ export function SessionCalendar({
                         >
                           <Play className="w-3 h-3 mr-1" />
                           Lancer
+                        </Button>
+                      )}
+                      {session.saved_session_id && onEditSession && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditSession(session.saved_session_id!);
+                          }}
+                          title="Éditer la séance"
+                        >
+                          <Pencil className="w-4 h-4" />
                         </Button>
                       )}
                       {!session.completed && onMarkComplete && (
