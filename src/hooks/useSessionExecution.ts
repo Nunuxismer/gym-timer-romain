@@ -325,15 +325,19 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
             isTimerRunning: true,
           }));
         } else {
-          // No rest, go directly to next exercise
+          // No rest: go directly to next exercise and auto-start timer
           const nextExercise = currentBlock.exercises[nextExIndex];
-          const workDuration = getExerciseWorkDuration(nextExercise);
+          const nextWorkDuration = getExerciseWorkDuration(nextExercise);
+          const nextIsBilateral = nextExercise.bilateral && nextWorkDuration;
           setState(prev => ({
             ...prev,
+            phase: 'exercise_work',
             currentExerciseIndex: nextExIndex,
-            timeRemaining: workDuration || 0,
+            timeRemaining: nextWorkDuration || 0,
             timeElapsed: 0,
-            isFreeExercise: !workDuration,
+            isFreeExercise: !nextWorkDuration,
+            isTimerRunning: !!nextWorkDuration, // auto-start if timed
+            bilateralSide: nextIsBilateral ? 'left' : null,
           }));
         }
       } else {
@@ -347,24 +351,28 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
             setState(prev => ({
               ...prev,
               phase: 'between_rounds',
+              currentRound: nextRound,
+              totalRounds: totalRounds,
               timeRemaining: restBetweenRounds,
               timeElapsed: 0,
               isTimerRunning: true,
-              totalRounds: totalRounds, // Ensure totalRounds is set
             }));
           } else {
-            // Start next round immediately
+            // Start next round immediately and auto-start timer
             const firstExercise = currentBlock.exercises[0];
-            const workDuration = getExerciseWorkDuration(firstExercise);
+            const firstWorkDuration = getExerciseWorkDuration(firstExercise);
+            const firstIsBilateral = firstExercise.bilateral && firstWorkDuration;
             setState(prev => ({
               ...prev,
               phase: 'exercise_work',
               currentExerciseIndex: 0,
               currentRound: nextRound,
               totalRounds: totalRounds,
-              timeRemaining: workDuration || 0,
+              timeRemaining: firstWorkDuration || 0,
               timeElapsed: 0,
-              isFreeExercise: !workDuration,
+              isFreeExercise: !firstWorkDuration,
+              isTimerRunning: !!firstWorkDuration, // auto-start if timed
+              bilateralSide: firstIsBilateral ? 'left' : null,
             }));
           }
         } else {
@@ -422,7 +430,7 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
           currentExerciseIndex: nextExIndex,
           timeRemaining: nextWorkDuration || 0,
           timeElapsed: 0,
-          isTimerRunning: false,
+          isTimerRunning: !!nextWorkDuration, // auto-start timer after rest
           isFreeExercise: !nextWorkDuration,
           bilateralSide: nextIsBilateral ? 'left' : null,
         }));
@@ -435,11 +443,11 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
           ...prev,
           phase: 'exercise_work',
           currentExerciseIndex: 0,
-          currentRound: prev.currentRound + 1,
+          currentRound: prev.currentRound, // already incremented in finishSet
           totalRounds: totalRounds,
           timeRemaining: firstWorkDuration || 0,
           timeElapsed: 0,
-          isTimerRunning: false,
+          isTimerRunning: !!firstWorkDuration, // auto-start timer after rest
           isFreeExercise: !firstWorkDuration,
           bilateralSide: firstIsBilateral ? 'left' : null,
         }));
