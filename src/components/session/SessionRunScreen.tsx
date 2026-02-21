@@ -677,8 +677,8 @@ export function SessionRunScreen({
           )}
         </div>
 
-        {/* REST PHASE: Performance editor */}
-        {isRestPhase && currentExercise && (
+        {/* REST PHASE: Performance editor (hidden in circuit blocks) */}
+        {isRestPhase && currentExercise && currentBlock?.block_type !== 'circuit' && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}

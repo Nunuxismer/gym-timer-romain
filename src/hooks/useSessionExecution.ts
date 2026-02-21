@@ -277,13 +277,15 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
     const workDuration = getExerciseWorkDuration(currentExercise);
 
     // Handle bilateral exercise: if on left side, switch to right side
+    // In circuits, auto-start the right side immediately (no rest between sides)
     if (state.bilateralSide === 'left' && currentExercise.bilateral && workDuration) {
+      const autoStart = blockType === 'circuit';
       setState(prev => ({
         ...prev,
         bilateralSide: 'right',
         timeRemaining: workDuration,
         timeElapsed: 0,
-        isTimerRunning: false,
+        isTimerRunning: autoStart,
       }));
       return;
     }

@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { ChevronUp, ChevronDown, Weight, RotateCcw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { SetPerformance } from '@/hooks/usePerformanceTracking';
 import type { Exercise } from '@/types/jsonSession';
 import { getNumericValue } from '@/types/jsonSession';
+import { ScrollPicker } from './ScrollPicker';
 
 interface SetPerformanceEditorProps {
   exercise: Exercise;
@@ -24,7 +23,6 @@ export function SetPerformanceEditor({
   onUpdateReps,
   onUpdateWeight,
 }: SetPerformanceEditorProps) {
-  // Get target values from exercise definition or previous actual values
   const defaultReps = performance?.actualReps ?? performance?.targetReps ?? getNumericValue(exercise.reps) ?? getNumericValue(exercise.reps_per_side) ?? 0;
   const defaultWeight = performance?.actualWeight ?? performance?.targetWeight ?? 0;
   
@@ -32,7 +30,6 @@ export function SetPerformanceEditor({
   const [weight, setWeight] = useState<number>(defaultWeight);
   const [isExpanded, setIsExpanded] = useState(true);
 
-  // Sync with external state when it changes
   useEffect(() => {
     if (performance?.actualReps !== undefined) {
       setReps(performance.actualReps);
@@ -53,11 +50,6 @@ export function SetPerformanceEditor({
     setWeight(validWeight);
     onUpdateWeight(validWeight);
   };
-
-  const incrementReps = () => handleRepsChange(reps + 1);
-  const decrementReps = () => handleRepsChange(reps - 1);
-  const incrementWeight = () => handleWeightChange(weight + 2.5);
-  const decrementWeight = () => handleWeightChange(weight - 2.5);
 
   const resetToDefault = () => {
     const defReps = getNumericValue(exercise.reps) ?? getNumericValue(exercise.reps_per_side) ?? 0;
@@ -93,86 +85,30 @@ export function SetPerformanceEditor({
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="space-y-4"
+              className="space-y-3"
             >
-              {/* Reps control */}
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Répétitions réelles</Label>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={decrementReps}
-                    disabled={reps <= 0}
-                    className="h-10 w-10"
-                  >
-                    <ChevronDown className="w-4 h-4" />
-                  </Button>
-                  <Input
-                    type="number"
-                    value={reps}
-                    onChange={(e) => handleRepsChange(parseInt(e.target.value) || 0)}
-                    className="text-center text-lg font-bold h-10 w-20"
-                    min={0}
-                  />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={incrementReps}
-                    className="h-10 w-10"
-                  >
-                    <ChevronUp className="w-4 h-4" />
-                  </Button>
-                  <span className="text-sm text-muted-foreground ml-2">reps</span>
-                </div>
-              </div>
-
-              {/* Weight control */}
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Poids utilisé</Label>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={decrementWeight}
-                    disabled={weight <= 0}
-                    className="h-10 w-10"
-                  >
-                    <ChevronDown className="w-4 h-4" />
-                  </Button>
-                  <Input
-                    type="number"
-                    value={weight}
-                    onChange={(e) => handleWeightChange(parseFloat(e.target.value) || 0)}
-                    className="text-center text-lg font-bold h-10 w-20"
-                    min={0}
-                    step={0.5}
-                  />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={incrementWeight}
-                    className="h-10 w-10"
-                  >
-                    <ChevronUp className="w-4 h-4" />
-                  </Button>
-                  <span className="text-sm text-muted-foreground ml-2">kg</span>
-                </div>
-              </div>
-
-              {/* Quick weight buttons */}
-              <div className="flex flex-wrap gap-2">
-                {[5, 10, 15, 20, 25, 30].map((w) => (
-                  <Button
-                    key={w}
-                    variant={weight === w ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => handleWeightChange(w)}
-                    className="flex-1 min-w-[3rem]"
-                  >
-                    {w}kg
-                  </Button>
-                ))}
+              {/* Horizontal scroll pickers for reps and weight */}
+              <div className="flex items-start justify-center gap-8">
+                <ScrollPicker
+                  value={reps}
+                  onChange={handleRepsChange}
+                  min={0}
+                  max={50}
+                  step={1}
+                  label="Reps"
+                  suffix="reps"
+                  className="flex-1"
+                />
+                <ScrollPicker
+                  value={weight}
+                  onChange={handleWeightChange}
+                  min={0}
+                  max={200}
+                  step={2.5}
+                  label="Poids"
+                  suffix="kg"
+                  className="flex-1"
+                />
               </div>
 
               {/* Reset button */}
