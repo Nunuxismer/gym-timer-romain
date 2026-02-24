@@ -13,7 +13,7 @@ export function TabLink({ active, onClick, children, icon }: TabLinkProps) {
     <button
       onClick={onClick}
       className={cn(
-        'relative flex-1 flex items-center justify-center gap-2 py-3 px-4 text-sm font-medium transition-colors',
+        'relative flex-none md:flex-1 min-w-[120px] md:min-w-0 flex items-center justify-center gap-2 py-3 px-4 text-sm font-medium whitespace-nowrap transition-colors',
         active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
       )}
     >

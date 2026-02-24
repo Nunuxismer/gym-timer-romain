@@ -6,7 +6,6 @@ import { motion } from 'framer-motion';
 import type { SetPerformance } from '@/hooks/usePerformanceTracking';
 import type { Exercise } from '@/types/jsonSession';
 import { getNumericValue } from '@/types/jsonSession';
-import { ScrollPicker } from './ScrollPicker';
 
 interface SetPerformanceEditorProps {
   exercise: Exercise;
@@ -57,6 +56,9 @@ export function SetPerformanceEditor({
     handleWeightChange(performance?.targetWeight ?? 0);
   };
 
+  const repsOptions = Array.from({ length: 51 }, (_, i) => i);
+  const weightOptions = Array.from({ length: 201 }, (_, i) => i);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -10 }}
@@ -87,28 +89,36 @@ export function SetPerformanceEditor({
               exit={{ height: 0, opacity: 0 }}
               className="space-y-3"
             >
-              {/* Horizontal scroll pickers for reps and weight */}
-              <div className="flex items-start justify-center gap-8">
-                <ScrollPicker
-                  value={reps}
-                  onChange={handleRepsChange}
-                  min={0}
-                  max={50}
-                  step={1}
-                  label="Reps"
-                  suffix="reps"
-                  className="flex-1"
-                />
-                <ScrollPicker
-                  value={weight}
-                  onChange={handleWeightChange}
-                  min={0}
-                  max={200}
-                  step={2.5}
-                  label="Poids"
-                  suffix="kg"
-                  className="flex-1"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <label className="space-y-1">
+                  <span className="text-xs text-muted-foreground font-medium">Reps</span>
+                  <select
+                    value={reps}
+                    onChange={(e) => handleRepsChange(Number(e.target.value))}
+                    className="h-11 w-full rounded-md border border-input bg-background px-3 text-base font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    {repsOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-xs text-muted-foreground font-medium">Poids (kg)</span>
+                  <select
+                    value={weight}
+                    onChange={(e) => handleWeightChange(Number(e.target.value))}
+                    className="h-11 w-full rounded-md border border-input bg-background px-3 text-base font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    {weightOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
 
               {/* Reset button */}

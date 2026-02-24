@@ -528,7 +528,7 @@ const Index = () => {
   const editingRestPreset = editingId && timerType === 'rest' ? getRestPreset(editingId) : undefined;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       <AnimatePresence mode="wait">
         {view === 'home' && (
           <motion.div
@@ -554,8 +554,9 @@ const Index = () => {
               </div>
 
               {/* Navigation tabs */}
-              <div className="flex border-t border-border">
-                <TabLink
+              <div className="border-t border-border overflow-x-auto overflow-y-hidden overscroll-x-contain scrollbar-hide">
+                <div className="flex min-w-max">
+                  <TabLink
                   active={timerType === 'emom'}
                   onClick={() => setTimerType('emom')}
                   icon={<Timer className="w-4 h-4" />}
@@ -590,6 +591,7 @@ const Index = () => {
                 >
                   Historique
                 </TabLink>
+                </div>
               </div>
             </header>
 
