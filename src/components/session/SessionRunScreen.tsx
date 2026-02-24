@@ -334,7 +334,7 @@ export function SessionRunScreen({
           </Button>
         </header>
 
-        <div className="flex-1 flex flex-col p-6">
+        <div className="flex-1 flex flex-col p-6 pb-28 md:pb-6 overflow-hidden">
           <div className="mb-6">
             <Badge variant="secondary" className="mb-2">
               {BLOCK_TYPE_FR[currentBlock.block_type]}
@@ -404,7 +404,7 @@ export function SessionRunScreen({
           </div>
 
           {/* Start block button */}
-          <div className="pt-6">
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-sm border-t border-border safe-bottom md:static md:p-0 md:pt-6 md:bg-transparent md:border-0 md:backdrop-blur-none">
             <Button
               variant="default"
               size="xl"
