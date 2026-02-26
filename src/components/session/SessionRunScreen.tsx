@@ -690,7 +690,7 @@ export function SessionRunScreen({
               </motion.div>
               
               {/* Progress bar */}
-              <Progress value={progressPercent} className="h-2 mt-2 w-64" />
+              <Progress value={progressPercent} className="h-2 mt-4 w-64" />
             </div>
           )}
 
