@@ -48,6 +48,11 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
+function formatTimerValue(seconds: number, isOvertime: boolean): string {
+  const formattedTime = formatTime(Math.max(0, seconds));
+  return isOvertime ? `+${formattedTime}` : formattedTime;
+}
+
 export function SessionRunScreen({ 
   session, 
   savedSessionId,
@@ -243,7 +248,7 @@ export function SessionRunScreen({
       case 'exercise_rest':
       case 'between_exercises':
       case 'between_rounds':
-        return 'phase-rest';
+        return state.timeRemaining <= 0 ? 'text-destructive' : 'phase-rest';
       case 'complete':
         return 'phase-complete';
       default:
@@ -442,9 +447,35 @@ export function SessionRunScreen({
                        state.phase === 'between_rounds';
 
   const showTimer = !state.isFreeExercise || isRestPhase;
-  const progressPercent = state.timeRemaining > 0 
-    ? ((state.timeElapsed) / (state.timeElapsed + state.timeRemaining)) * 100
-    : 100;
+  const isRestOvertime = isRestPhase && state.timeRemaining <= 0;
+
+  const getRestTargetDuration = () => {
+    if (!currentBlock) return 0;
+
+    if (state.phase === 'exercise_rest' && currentExercise) {
+      return getNumericValue(currentExercise.rest_after_set_sec) || 0;
+    }
+
+    if (state.phase === 'between_exercises') {
+      return getNumericValue(currentBlock.rest_between_exercises_sec) || 0;
+    }
+
+    if (state.phase === 'between_rounds') {
+      return getNumericValue(currentBlock.rest_between_rounds_sec) || 0;
+    }
+
+    return 0;
+  };
+
+  const restTargetDuration = getRestTargetDuration();
+
+  const progressPercent = isRestPhase
+    ? (restTargetDuration > 0
+      ? Math.min((state.timeElapsed / restTargetDuration) * 100, 100)
+      : 100)
+    : (state.timeRemaining > 0
+      ? ((state.timeElapsed) / (state.timeElapsed + state.timeRemaining)) * 100
+      : 100);
 
   // Get current set performance for editing during rest
   const currentSetPerformance = currentExercise 
@@ -655,14 +686,11 @@ export function SessionRunScreen({
                 initial={{ scale: 1.05 }}
                 animate={{ scale: 1 }}
               >
-                {formatTime(state.timeRemaining)}
+                {formatTimerValue(isRestOvertime ? Math.abs(state.timeRemaining) : state.timeRemaining, isRestOvertime)}
               </motion.div>
               
               {/* Progress bar */}
-              <Progress 
-                value={progressPercent} 
-                className="h-2 mt-4 w-64"
-              />
+              <Progress value={progressPercent} className="h-2 mt-4 w-64" />
             </div>
           )}
 
@@ -792,7 +820,7 @@ export function SessionRunScreen({
                 className="flex-1"
               >
                 <SkipForward className="w-5 h-5 mr-2" />
-                Passer le repos
+                Série faite
               </Button>
             </div>
           </div>
