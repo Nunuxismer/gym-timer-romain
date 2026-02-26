@@ -53,6 +53,23 @@ function formatTimerValue(seconds: number, isOvertime: boolean): string {
   return isOvertime ? `+${formattedTime}` : formattedTime;
 }
 
+function getProgressPercent(timeElapsed: number, timeRemaining: number, restTargetDuration: number, isRestPhase: boolean): number {
+  if (isRestPhase) {
+    if (restTargetDuration <= 0) return 100;
+
+    return Math.min(
+      Math.max(((restTargetDuration - Math.max(timeRemaining, 0)) / restTargetDuration) * 100, 0),
+      100
+    );
+  }
+
+  if (timeRemaining <= 0) {
+    return 100;
+  }
+
+  return (timeElapsed / (timeElapsed + timeRemaining)) * 100;
+}
+
 export function SessionRunScreen({ 
   session, 
   savedSessionId,
@@ -469,16 +486,12 @@ export function SessionRunScreen({
 
   const restTargetDuration = getRestTargetDuration();
 
-  const progressPercent = isRestPhase
-    ? (restTargetDuration > 0
-      ? Math.min(
-          Math.max(((restTargetDuration - Math.max(state.timeRemaining, 0)) / restTargetDuration) * 100, 0),
-          100
-        )
-      : 100)
-    : (state.timeRemaining > 0
-      ? ((state.timeElapsed) / (state.timeElapsed + state.timeRemaining)) * 100
-      : 100);
+  const progressPercent = getProgressPercent(
+    state.timeElapsed,
+    state.timeRemaining,
+    restTargetDuration,
+    isRestPhase
+  );
 
   // Get current set performance for editing during rest
   const currentSetPerformance = currentExercise 
