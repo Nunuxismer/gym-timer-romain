@@ -471,10 +471,7 @@ export function SessionRunScreen({
 
   const progressPercent = isRestPhase
     ? (restTargetDuration > 0
-      ? Math.min(
-          Math.max(((restTargetDuration - Math.max(state.timeRemaining, 0)) / restTargetDuration) * 100, 0),
-          100
-        )
+      ? Math.min((state.timeElapsed / restTargetDuration) * 100, 100)
       : 100)
     : (state.timeRemaining > 0
       ? ((state.timeElapsed) / (state.timeElapsed + state.timeRemaining)) * 100
