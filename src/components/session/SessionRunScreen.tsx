@@ -520,13 +520,13 @@ export function SessionRunScreen({
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col p-6 overflow-auto">
+      <div className="flex-1 flex flex-col p-4 overflow-auto">
         {/* REST PHASE: Show exercise info at top */}
         {isRestPhase && currentExercise && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-4"
+            className="text-center mb-2"
           >
             <p className="text-sm text-muted-foreground mb-1">Exercice en cours</p>
             <h2 className="text-xl font-bold text-foreground mb-2">
@@ -546,7 +546,7 @@ export function SessionRunScreen({
         )}
 
         {/* Centered timer area */}
-        <div className="flex-1 flex flex-col items-center justify-center">
+        <div className={`flex-1 flex flex-col items-center ${isRestPhase ? "justify-start" : "justify-center"}`}>
           {/* Phase label */}
           <AnimatePresence mode="wait">
             <motion.div
@@ -554,7 +554,7 @@ export function SessionRunScreen({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              className="mb-4"
+              className="mb-2"
             >
               <Badge 
                 variant={isRestPhase ? 'secondary' : 'default'}
@@ -679,7 +679,7 @@ export function SessionRunScreen({
 
           {/* Timer display */}
           {showTimer && (
-            <div className="mb-6">
+            <div className={isRestPhase ? "mb-3" : "mb-6"}>
               <motion.div
                 className={`timer-digits ${getPhaseColor()}`}
                 key={Math.floor(state.timeRemaining)}
@@ -710,7 +710,7 @@ export function SessionRunScreen({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-4"
+            className="mb-2"
           >
             <SetPerformanceEditor
               exercise={currentExercise}
@@ -727,7 +727,7 @@ export function SessionRunScreen({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-auto pt-4"
+            className="pt-2"
           >
             {(() => {
               // Always show the NEXT exercise (not next set)
@@ -741,7 +741,7 @@ export function SessionRunScreen({
                 if (nextBlock && nextBlock.exercises.length > 0) {
                   const firstExerciseOfNextBlock = nextBlock.exercises[0];
                   return (
-                    <div className="bg-secondary/50 rounded-xl p-4">
+                    <div className="bg-secondary/50 rounded-xl p-3">
                       <p className="text-xs text-muted-foreground mb-1 text-center">Prochain exercice</p>
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
@@ -764,7 +764,7 @@ export function SessionRunScreen({
               }
 
               return (
-                <div className="bg-secondary/50 rounded-xl p-4">
+                <div className="bg-secondary/50 rounded-xl p-3">
                   <p className="text-xs text-muted-foreground mb-1 text-center">Prochain exercice</p>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
