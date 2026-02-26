@@ -48,6 +48,11 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
+function formatTimerValue(seconds: number, isOvertime: boolean): string {
+  const formattedTime = formatTime(Math.max(0, seconds));
+  return isOvertime ? `+${formattedTime}` : formattedTime;
+}
+
 export function SessionRunScreen({ 
   session, 
   savedSessionId,
@@ -243,7 +248,7 @@ export function SessionRunScreen({
       case 'exercise_rest':
       case 'between_exercises':
       case 'between_rounds':
-        return 'phase-rest';
+        return state.timeRemaining <= 0 ? 'text-destructive' : 'phase-rest';
       case 'complete':
         return 'phase-complete';
       default:
@@ -442,9 +447,38 @@ export function SessionRunScreen({
                        state.phase === 'between_rounds';
 
   const showTimer = !state.isFreeExercise || isRestPhase;
-  const progressPercent = state.timeRemaining > 0 
-    ? ((state.timeElapsed) / (state.timeElapsed + state.timeRemaining)) * 100
-    : 100;
+  const isRestOvertime = isRestPhase && state.timeRemaining <= 0;
+
+  const getRestTargetDuration = () => {
+    if (!currentBlock) return 0;
+
+    if (state.phase === 'exercise_rest' && currentExercise) {
+      return getNumericValue(currentExercise.rest_after_set_sec) || 0;
+    }
+
+    if (state.phase === 'between_exercises') {
+      return getNumericValue(currentBlock.rest_between_exercises_sec) || 0;
+    }
+
+    if (state.phase === 'between_rounds') {
+      return getNumericValue(currentBlock.rest_between_rounds_sec) || 0;
+    }
+
+    return 0;
+  };
+
+  const restTargetDuration = getRestTargetDuration();
+
+  const progressPercent = isRestPhase
+    ? (restTargetDuration > 0
+      ? Math.min(
+          Math.max(((restTargetDuration - Math.max(state.timeRemaining, 0)) / restTargetDuration) * 100, 0),
+          100
+        )
+      : 100)
+    : (state.timeRemaining > 0
+      ? ((state.timeElapsed) / (state.timeElapsed + state.timeRemaining)) * 100
+      : 100);
 
   // Get current set performance for editing during rest
   const currentSetPerformance = currentExercise 
@@ -489,13 +523,13 @@ export function SessionRunScreen({
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col p-6 overflow-auto">
+      <div className="flex-1 flex flex-col p-4 overflow-auto">
         {/* REST PHASE: Show exercise info at top */}
         {isRestPhase && currentExercise && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-4"
+            className="text-center mb-2"
           >
             <p className="text-sm text-muted-foreground mb-1">Exercice en cours</p>
             <h2 className="text-xl font-bold text-foreground mb-2">
@@ -515,7 +549,7 @@ export function SessionRunScreen({
         )}
 
         {/* Centered timer area */}
-        <div className="flex-1 flex flex-col items-center justify-center">
+        <div className={`flex-1 flex flex-col items-center ${isRestPhase ? "justify-start" : "justify-center"}`}>
           {/* Phase label */}
           <AnimatePresence mode="wait">
             <motion.div
@@ -523,7 +557,7 @@ export function SessionRunScreen({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              className="mb-4"
+              className="mb-2"
             >
               <Badge 
                 variant={isRestPhase ? 'secondary' : 'default'}
@@ -648,21 +682,18 @@ export function SessionRunScreen({
 
           {/* Timer display */}
           {showTimer && (
-            <div className="mb-6">
+            <div className={isRestPhase ? "mb-3" : "mb-6"}>
               <motion.div
                 className={`timer-digits ${getPhaseColor()}`}
                 key={Math.floor(state.timeRemaining)}
                 initial={{ scale: 1.05 }}
                 animate={{ scale: 1 }}
               >
-                {formatTime(state.timeRemaining)}
+                {formatTimerValue(isRestOvertime ? Math.abs(state.timeRemaining) : state.timeRemaining, isRestOvertime)}
               </motion.div>
               
               {/* Progress bar */}
-              <Progress 
-                value={progressPercent} 
-                className="h-2 mt-4 w-64"
-              />
+              <Progress value={progressPercent} className="h-2 mt-2 w-64" />
             </div>
           )}
 
@@ -682,7 +713,7 @@ export function SessionRunScreen({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-4"
+            className="mb-2"
           >
             <SetPerformanceEditor
               exercise={currentExercise}
@@ -699,7 +730,7 @@ export function SessionRunScreen({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-auto pt-4"
+            className="pt-2"
           >
             {(() => {
               // Always show the NEXT exercise (not next set)
@@ -713,7 +744,7 @@ export function SessionRunScreen({
                 if (nextBlock && nextBlock.exercises.length > 0) {
                   const firstExerciseOfNextBlock = nextBlock.exercises[0];
                   return (
-                    <div className="bg-secondary/50 rounded-xl p-4">
+                    <div className="bg-secondary/50 rounded-xl p-3">
                       <p className="text-xs text-muted-foreground mb-1 text-center">Prochain exercice</p>
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
@@ -736,7 +767,7 @@ export function SessionRunScreen({
               }
 
               return (
-                <div className="bg-secondary/50 rounded-xl p-4">
+                <div className="bg-secondary/50 rounded-xl p-3">
                   <p className="text-xs text-muted-foreground mb-1 text-center">Prochain exercice</p>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
@@ -792,7 +823,7 @@ export function SessionRunScreen({
                 className="flex-1"
               >
                 <SkipForward className="w-5 h-5 mr-2" />
-                Passer le repos
+                Série faite
               </Button>
             </div>
           </div>

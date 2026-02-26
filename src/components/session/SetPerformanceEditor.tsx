@@ -27,7 +27,7 @@ export function SetPerformanceEditor({
   
   const [reps, setReps] = useState<number>(defaultReps);
   const [weight, setWeight] = useState<number>(defaultWeight);
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     if (performance?.actualReps !== undefined) {
@@ -66,8 +66,8 @@ export function SetPerformanceEditor({
       className="w-full"
     >
       <Card className="bg-secondary/80 border-primary/20">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-3">
+        <CardContent className="p-3">
+          <div className="flex items-center justify-between mb-2">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Weight className="w-4 h-4 text-primary" />
               Série {setIndex + 1} — Ajuster
@@ -87,7 +87,7 @@ export function SetPerformanceEditor({
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="space-y-3"
+              className="space-y-2.5"
             >
               <div className="grid grid-cols-2 gap-3">
                 <label className="space-y-1">
