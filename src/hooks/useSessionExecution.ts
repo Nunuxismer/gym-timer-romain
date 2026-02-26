@@ -97,9 +97,13 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
       if (!prev.isTimerRunning) return prev;
 
       const newTimeElapsed = prev.timeElapsed + delta;
-      const newTimeRemaining = Math.max(0, prev.timeRemaining - delta);
+      const newTimeRemaining = prev.timeRemaining - delta;
+      const isRestPhase =
+        prev.phase === 'exercise_rest' ||
+        prev.phase === 'between_exercises' ||
+        prev.phase === 'between_rounds';
 
-      if (newTimeRemaining <= 0) {
+      if (!isRestPhase && newTimeRemaining <= 0) {
         // Timer finished - auto-advance
         return {
           ...prev,
@@ -515,16 +519,12 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
   // Auto-advance when timer hits 0
   useEffect(() => {
     if (state.timeRemaining <= 0 && !state.isTimerRunning && state.phase !== 'idle' && state.phase !== 'block_intro' && state.phase !== 'complete') {
-      // Timer finished, check if we should auto-advance
-      if (state.phase === 'exercise_rest' || state.phase === 'between_exercises' || state.phase === 'between_rounds') {
-        // After rest phases, auto-advance
-        advanceAfterRest();
-      } else if (state.phase === 'exercise_work' && !state.isFreeExercise && state.timeElapsed > 0) {
+      if (state.phase === 'exercise_work' && !state.isFreeExercise && state.timeElapsed > 0) {
         // Timed exercise finished, go to rest or next
         finishSet();
       }
     }
-  }, [state.timeRemaining, state.isTimerRunning, state.phase, state.isFreeExercise, state.timeElapsed, advanceAfterRest, finishSet]);
+  }, [state.timeRemaining, state.isTimerRunning, state.phase, state.isFreeExercise, state.timeElapsed, finishSet]);
 
   const skipRest = useCallback(() => {
     advanceAfterRest();
