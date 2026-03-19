@@ -92,6 +92,7 @@ export interface Block {
   block_name: string;
   block_description?: string | null;
   rounds?: RangeOrNumber | null;
+  launch_timer_sec?: number | null;
   rest_between_exercises_sec?: RangeOrNumber | null;
   rest_between_rounds_sec?: RangeOrNumber | null;
   duration_sec?: RangeOrNumber | null;

@@ -148,6 +148,13 @@ function validateBlock(block: unknown, path: string, errors: ValidationError[]):
     }
   }
 
+  if (b.launch_timer_sec !== undefined && b.launch_timer_sec !== null && typeof b.launch_timer_sec !== 'number') {
+    errors.push({
+      path: `${path}.launch_timer_sec`,
+      message: `Le champ 'launch_timer_sec' doit être un nombre`
+    });
+  }
+
   return valid;
 }
 

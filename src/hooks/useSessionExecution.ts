@@ -6,6 +6,7 @@ import { getNumericValue, formatRange } from '@/types/jsonSession';
 export type ExecutionPhase = 
   | 'idle'           // Not started yet
   | 'block_intro'    // Showing block overview before starting
+  | 'circuit_launch' // One-time launch countdown before a circuit starts
   | 'exercise_work'  // Performing exercise (countdown or free)
   | 'exercise_rest'  // Rest after a set
   | 'between_exercises' // Rest between exercises (circuit)
@@ -177,6 +178,11 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
     return getNumericValue(block.rest_between_rounds_sec) || 0;
   }, []);
 
+  const getLaunchTimer = useCallback((block: Block): number => {
+    if (block.block_type !== 'circuit') return 0;
+    return block.launch_timer_sec ?? 15;
+  }, []);
+
   const getBlockDuration = useCallback((block: Block): number | null => {
     return getNumericValue(block.duration_sec) || null;
   }, []);
@@ -242,20 +248,21 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
       const rounds = getTotalRounds(currentBlock);
       const workDuration = getExerciseWorkDuration(firstExercise);
       const isBilateral = firstExercise.bilateral && workDuration;
+      const launchTimer = getLaunchTimer(currentBlock);
 
       setState(prev => ({
         ...prev,
-        phase: 'exercise_work',
+        phase: launchTimer > 0 ? 'circuit_launch' : 'exercise_work',
         currentExerciseIndex: 0,
         currentSet: 1,
         currentRound: 1,
         totalSets: 1,
         totalRounds: rounds,
-        timeRemaining: workDuration || 0,
+        timeRemaining: launchTimer > 0 ? launchTimer : (workDuration || 0),
         timeElapsed: 0,
         isTimerRunning: false,
-        isFreeExercise: !workDuration,
-        bilateralSide: isBilateral ? 'left' : null,
+        isFreeExercise: launchTimer > 0 ? false : !workDuration,
+        bilateralSide: launchTimer > 0 ? null : (isBilateral ? 'left' : null),
       }));
     } else {
       // Standard block
@@ -278,7 +285,7 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
         bilateralSide: isBilateral ? 'left' : null,
       }));
     }
-  }, [currentBlock, blocks.length, getBlockDuration, getTotalRounds, getTotalSets, getExerciseWorkDuration]);
+  }, [currentBlock, blocks.length, getBlockDuration, getTotalRounds, getTotalSets, getExerciseWorkDuration, getLaunchTimer]);
 
   const finishSet = useCallback(() => {
     if (!currentBlock || !currentExercise) return;
@@ -431,6 +438,25 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
     if (blockType === 'circuit') {
       // After between_exercises rest: go to next exercise
       // After between_rounds rest: start new round
+      if (state.phase === 'circuit_launch') {
+        const firstEx = currentBlock.exercises[0];
+        const firstWorkDuration = getExerciseWorkDuration(firstEx);
+        const firstIsBilateral = firstEx.bilateral && firstWorkDuration;
+
+        setState(prev => ({
+          ...prev,
+          phase: 'exercise_work',
+          currentExerciseIndex: 0,
+          currentSet: 1,
+          timeRemaining: firstWorkDuration || 0,
+          timeElapsed: 0,
+          isTimerRunning: !!firstWorkDuration,
+          isFreeExercise: !firstWorkDuration,
+          bilateralSide: firstIsBilateral ? 'left' : null,
+        }));
+        return;
+      }
+
       if (state.phase === 'between_exercises') {
         const nextExIndex = state.currentExerciseIndex + 1;
         const nextEx = currentBlock.exercises[nextExIndex];
@@ -525,6 +551,11 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
   // Auto-advance when timer hits 0
   useEffect(() => {
     if (state.timeRemaining <= 0 && !state.isTimerRunning && state.phase !== 'idle' && state.phase !== 'block_intro' && state.phase !== 'complete') {
+      if (state.phase === 'circuit_launch' && state.timeElapsed > 0) {
+        advanceAfterRest();
+        return;
+      }
+
       if (state.phase === 'exercise_work' && !state.isFreeExercise && state.timeElapsed > 0) {
         // Timed exercise finished, go to rest or next
         finishSet();

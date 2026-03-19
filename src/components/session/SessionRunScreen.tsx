@@ -243,6 +243,8 @@ export function SessionRunScreen({
   // Phase-specific colors
   const getPhaseColor = () => {
     switch (state.phase) {
+      case 'circuit_launch':
+        return 'phase-rest';
       case 'exercise_work':
         return 'phase-activity';
       case 'exercise_rest':
@@ -262,6 +264,8 @@ export function SessionRunScreen({
         return 'Prêt à démarrer';
       case 'block_intro':
         return 'Prochain bloc';
+      case 'circuit_launch':
+        return 'Timer de lancement';
       case 'exercise_work':
         return state.isFreeExercise ? 'Exercice libre' : 'Effort';
       case 'exercise_rest':
@@ -350,6 +354,11 @@ export function SessionRunScreen({
             {currentBlock.block_description && (
               <p className="text-muted-foreground mt-2">
                 {currentBlock.block_description}
+              </p>
+            )}
+            {currentBlock.block_type === 'circuit' && (
+              <p className="text-sm text-muted-foreground mt-2">
+                Timer de lancement : {currentBlock.launch_timer_sec ?? 15}s
               </p>
             )}
           </div>
@@ -445,8 +454,9 @@ export function SessionRunScreen({
   const isRestPhase = state.phase === 'exercise_rest' || 
                        state.phase === 'between_exercises' || 
                        state.phase === 'between_rounds';
+  const isLaunchPhase = state.phase === 'circuit_launch';
 
-  const showTimer = !state.isFreeExercise || isRestPhase;
+  const showTimer = !state.isFreeExercise || isRestPhase || isLaunchPhase;
   const isRestOvertime = isRestPhase && state.timeRemaining <= 0;
 
   const getRestTargetDuration = () => {
@@ -473,6 +483,10 @@ export function SessionRunScreen({
     ? (restTargetDuration > 0
       ? Math.min((state.timeElapsed / restTargetDuration) * 100, 100)
       : 100)
+    : isLaunchPhase
+      ? ((currentBlock?.launch_timer_sec ?? 15) > 0
+        ? Math.min((state.timeElapsed / (currentBlock?.launch_timer_sec ?? 15)) * 100, 100)
+        : 100)
     : (state.timeRemaining > 0
       ? ((state.timeElapsed) / (state.timeElapsed + state.timeRemaining)) * 100
       : 100);
@@ -557,13 +571,35 @@ export function SessionRunScreen({
               className="mb-4"
             >
               <Badge 
-                variant={isRestPhase ? 'secondary' : 'default'}
-                className={`text-sm px-4 py-1 ${isRestPhase ? 'bg-timer-rest/20 text-timer-rest' : ''}`}
+                variant={isRestPhase || isLaunchPhase ? 'secondary' : 'default'}
+                className={`text-sm px-4 py-1 ${(isRestPhase || isLaunchPhase) ? 'bg-timer-rest/20 text-timer-rest' : ''}`}
               >
                 {getPhaseLabel()}
               </Badge>
             </motion.div>
           </AnimatePresence>
+
+          {currentBlock && state.phase === 'circuit_launch' && (
+            <div className="text-center mb-6 px-4 w-full max-w-md">
+              <h2 className="text-2xl font-bold text-foreground mb-2">
+                Prépare-toi à démarrer
+              </h2>
+              <p className="text-muted-foreground mb-4">
+                Place-toi avant le début du circuit.
+              </p>
+              {currentExercise && (
+                <div className="bg-secondary/50 rounded-xl p-4 text-left">
+                  <p className="text-xs text-muted-foreground mb-1">Premier exercice</p>
+                  <p className="font-semibold text-foreground">{currentExercise.exercise_name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Tour 1
+                    {currentExercise.duration_sec && ` • ${formatRange(currentExercise.duration_sec, 's')}`}
+                    {currentExercise.reps && ` • ${formatRange(currentExercise.reps)} reps`}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Exercise info - WORK PHASE */}
           {currentExercise && state.phase === 'exercise_work' && (
@@ -827,10 +863,10 @@ export function SessionRunScreen({
         )}
 
         {/* Work phase controls */}
-        {state.phase === 'exercise_work' && (
+        {(state.phase === 'exercise_work' || state.phase === 'circuit_launch') && (
           <div className="space-y-3">
-            {/* Timed exercise */}
-            {!state.isFreeExercise ? (
+            {/* Timed exercise / launch countdown */}
+            {(state.phase === 'circuit_launch' || !state.isFreeExercise) ? (
               <Button
                 variant="default"
                 size="xl"
@@ -845,7 +881,7 @@ export function SessionRunScreen({
                 ) : (
                   <>
                     <Play className="w-6 h-6 mr-2" />
-                    {state.timeElapsed > 0 ? 'Reprendre' : 'Démarrer'}
+                    {state.timeElapsed > 0 ? 'Reprendre' : (state.phase === 'circuit_launch' ? 'Lancer le circuit' : 'Démarrer')}
                   </>
                 )}
               </Button>
@@ -863,27 +899,29 @@ export function SessionRunScreen({
             )}
 
             {/* Navigation */}
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={handlePrev}
-                disabled={state.currentExerciseIndex === 0}
-                className="flex-1"
-              >
-                <ChevronLeft className="w-5 h-5 mr-1" />
-                Précédent
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={handleNext}
-                className="flex-1"
-              >
-                Suivant
-                <ChevronRight className="w-5 h-5 ml-1" />
-              </Button>
-            </div>
+            {state.phase === 'exercise_work' && (
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={handlePrev}
+                  disabled={state.currentExerciseIndex === 0}
+                  className="flex-1"
+                >
+                  <ChevronLeft className="w-5 h-5 mr-1" />
+                  Précédent
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={handleNext}
+                  className="flex-1"
+                >
+                  Suivant
+                  <ChevronRight className="w-5 h-5 ml-1" />
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
