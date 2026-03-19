@@ -102,15 +102,21 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
         prev.phase === 'exercise_rest' ||
         prev.phase === 'between_exercises' ||
         prev.phase === 'between_rounds';
+      const isCircuitRestPhase =
+        prev.phase === 'between_exercises' ||
+        prev.phase === 'between_rounds';
 
-      if (!isRestPhase && newTimeRemaining <= 0) {
-        // Timer finished - auto-advance
-        return {
-          ...prev,
-          timeElapsed: newTimeElapsed,
-          timeRemaining: 0,
-          isTimerRunning: false,
-        };
+      if (newTimeRemaining <= 0) {
+        if (!isRestPhase || isCircuitRestPhase) {
+          // Timer finished - auto-advance.
+          // Circuit rest phases should chain automatically instead of waiting in overtime.
+          return {
+            ...prev,
+            timeElapsed: newTimeElapsed,
+            timeRemaining: 0,
+            isTimerRunning: false,
+          };
+        }
       }
 
       return {
@@ -522,9 +528,15 @@ export function useSessionExecution(session: StoredSession): UseSessionExecution
       if (state.phase === 'exercise_work' && !state.isFreeExercise && state.timeElapsed > 0) {
         // Timed exercise finished, go to rest or next
         finishSet();
+        return;
+      }
+
+      if ((state.phase === 'between_exercises' || state.phase === 'between_rounds') && state.timeElapsed > 0) {
+        // Circuit rest timers should flow directly into the next exercise/round.
+        advanceAfterRest();
       }
     }
-  }, [state.timeRemaining, state.isTimerRunning, state.phase, state.isFreeExercise, state.timeElapsed, finishSet]);
+  }, [state.timeRemaining, state.isTimerRunning, state.phase, state.isFreeExercise, state.timeElapsed, finishSet, advanceAfterRest]);
 
   const skipRest = useCallback(() => {
     advanceAfterRest();
