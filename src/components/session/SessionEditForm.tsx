@@ -50,6 +50,7 @@ export function SessionEditForm({ session, onSave, onBack }: SessionEditFormProp
     session: { ...session.session },
     blocks: session.blocks.map(b => ({
       ...b,
+      launch_timer_sec: b.block_type === 'circuit' ? (b.launch_timer_sec ?? 15) : b.launch_timer_sec,
       exercises: b.exercises.map(e => ({ ...e }))
     }))
   });
@@ -234,7 +235,7 @@ export function SessionEditForm({ session, onSave, onBack }: SessionEditFormProp
                     </div>
 
                     {block.block_type === 'circuit' && (
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                         <div className="space-y-2">
                           <Label>Tours</Label>
                           <Input
@@ -249,6 +250,16 @@ export function SessionEditForm({ session, onSave, onBack }: SessionEditFormProp
                             value={rangeToString(block.rest_between_exercises_sec)}
                             onChange={(e) => handleBlockChange(blockIndex, 'rest_between_exercises_sec', parseRangeInput(e.target.value))}
                             placeholder="15-20"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Timer de lancement (s)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={block.launch_timer_sec ?? 15}
+                            onChange={(e) => handleBlockChange(blockIndex, 'launch_timer_sec', parseInt(e.target.value, 10) || 0)}
+                            placeholder="15"
                           />
                         </div>
                         <div className="space-y-2">

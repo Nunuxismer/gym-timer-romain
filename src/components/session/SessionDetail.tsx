@@ -176,6 +176,7 @@ function BlockDetail({ block, index }: { block: Block; index: number }) {
   const restBetweenExercises = formatRange(block.rest_between_exercises_sec, 's');
   const restBetweenRounds = formatRange(block.rest_between_rounds_sec, 's');
   const duration = formatRange(block.duration_sec, 's');
+  const launchTimer = block.block_type === 'circuit' ? (block.launch_timer_sec ?? 15) : null;
 
   return (
     <Card className="overflow-hidden">
@@ -211,8 +212,13 @@ function BlockDetail({ block, index }: { block: Block; index: number }) {
         )}
 
         {/* Block timing info */}
-        {(restBetweenExercises || restBetweenRounds) && (
+        {(launchTimer || restBetweenExercises || restBetweenRounds) && (
           <div className="flex flex-wrap gap-3 text-sm">
+            {launchTimer !== null && launchTimer > 0 && (
+              <span className="text-muted-foreground">
+                Timer de lancement: <span className="text-foreground">{launchTimer}s</span>
+              </span>
+            )}
             {restBetweenExercises && (
               <span className="text-muted-foreground">
                 Repos entre exercices: <span className="text-foreground">{restBetweenExercises}</span>
